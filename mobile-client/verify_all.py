@@ -57,6 +57,11 @@ def main():
     test_scenario("https://wrong.host.badssl.com/", "UNSAFE") # Wrong Hostname
     test_scenario("https://revoked.badssl.com/", "UNSAFE") # Revoked
     
+    print("\n--- Production Feature Tests ---")
+    # sha256.badssl.com is no longer in explicit TAR matches, but 'badssl.com' is.
+    # Recursion logic should approve it.
+    # SSL is valid -> TRUSTED.
+    # Note: 'sha256.badssl.com' was already tested above, but let's confirm explicit recursion test.
     print("\nDone.")
 
 if __name__ == "__main__":

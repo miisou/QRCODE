@@ -8,8 +8,18 @@ from datetime import datetime
 
 router = APIRouter()
 
+from app.core.rate_limit import RateLimiter
+
+# Initialize limiters (e.g. 10/min per IP for init, 30/min for verify)
+init_limiter = RateLimiter(requests_per_minute=20)
+verify_limiter = RateLimiter(requests_per_minute=60)
+
 @router.post("/session/init", response_model=InitSessionResponse)
 async def init_session(request: Request, body: InitSessionRequest):
+    # Rate Limit by IP
+    client_ip = request.client.host if request.client else "unknown"
+    init_limiter.check(f"init:{client_ip}")
+
     # Get Client URL from header
     client_url = request.headers.get("X-Client-Url")
     if not client_url:
@@ -37,6 +47,10 @@ async def init_session(request: Request, body: InitSessionRequest):
 @router.post("/session/verify", response_model=VerifyTokenResponse)
 async def verify_token(body: VerifyTokenRequest, raw_request: Request, background_tasks: BackgroundTasks):
     request = body # Alias for easier diff
+    
+    # Rate Limit by IP
+    client_ip = raw_request.client.host if raw_request.client else "unknown"
+    verify_limiter.check(f"verify:{client_ip}")
     
     # 1. Get Session
     session = session_manager.get_session(request.token)

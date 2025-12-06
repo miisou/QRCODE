@@ -11,8 +11,8 @@
         "policy": "strict",
         "allowed_cas": []
     },
-    "sha256.badssl.com": {
-        "policy": "test",
+    "badssl.com": {
+        "policy": "strict",
         "allowed_cas": []
     },
     "moje.gov.pl": {
