@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import PropTypes from 'prop-types';
 
-const VerificationForm = ({ onGenerate }) => {
+const VerificationForm = ({ onGenerate, expirationMessage }) => {
     const [error, setError] = useState('');
 
     const handleGenerate = async () => {
@@ -17,15 +17,20 @@ const VerificationForm = ({ onGenerate }) => {
     return (
         <div className="card">
             <h2>Domain Verification</h2>
-            <p className="hint">Verify this website using the Govt App.</p>
+            <p className="hint">
+                {expirationMessage || "Verify this website using the Govt App."}
+            </p>
             {error && <p className="error">{error}</p>}
-            <button onClick={handleGenerate}>Generate QR Code</button>
+            <button onClick={handleGenerate}>
+                {expirationMessage ? "Request New One?" : "Generate QR Code"}
+            </button>
         </div>
     );
 };
 
 VerificationForm.propTypes = {
     onGenerate: PropTypes.func.isRequired,
+    expirationMessage: PropTypes.string,
 };
 
 export default VerificationForm;

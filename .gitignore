@@ -1,48 +1,67 @@
-__pycache__/
-.venv/
-.env*
+# General
+.DS_Store
+*.log
+.idea/
+.vscode/
+*.swp
+*.swo
 
 # Python
-*.pyc
-*.pyo
-*.pyd
-.pytest_cache/
-pip-wheel-metadata/
-site/
-venv/
-env/
-
-# Node / JS (web-client)
-node_modules/
-dist/
+**/__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
 build/
-.parcel-cache/
-.eslintcache
-.cache/
-.vercel/
-.turbo/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
 
-# Logs
+# Virtual Environments
+venv/
+.venv/
+env/
+.env/
+ENV/
+
+# Environment Variables
+.env
+.env.local
+.env.*.local
+*.env
+
+# Node.js
+node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
-*.log
-
-# OS junk
-.DS_Store
-Thumbs.db
-desktop.ini
-
-# IDE
-.vscode/
-.idea/
-
-# .NET leftovers (old simulator)
-bin/
-obj/
-
-# Coverage / reports
+lerna-debug.log*
+.pnpm-store
+dist/
+build/
 coverage/
-.nyc_output/
 
+# Web Client specific
+web-client/dist/
+web-client/build/
+web-client/.eslintcache
+
+# Mobile Client specific
+mobile-client/venv/
+
+# Verification Service specific
+verification-service/venv/
+verification-service/.pytest_cache/

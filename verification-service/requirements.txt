@@ -4,3 +4,6 @@ pydantic
 email_validator
 requests
 user-agents
+cryptography
+pytest
+redis
