@@ -1,8 +1,30 @@
-[
-    "gov.pl",
-    "www.gov.pl",
-    "podatki.gov.pl",
-    "moje.gov.pl",
-    "pacjent.gov.pl",
-    "profil-zaufany.pl"
-]
+{
+    "gov.pl": {
+        "policy": "strict",
+        "allowed_cas": []
+    },
+    "www.gov.pl": {
+        "policy": "strict",
+        "allowed_cas": []
+    },
+    "podatki.gov.pl": {
+        "policy": "strict",
+        "allowed_cas": []
+    },
+    "sha256.badssl.com": {
+        "policy": "test",
+        "allowed_cas": []
+    },
+    "moje.gov.pl": {
+        "policy": "strict",
+        "allowed_cas": []
+    },
+    "pacjent.gov.pl": {
+        "policy": "strict",
+        "allowed_cas": []
+    },
+    "profil-zaufany.pl": {
+        "policy": "strict",
+        "allowed_cas": []
+    }
+}

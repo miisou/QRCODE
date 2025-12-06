@@ -1,6 +1,7 @@
 # Mobile Client Simulator
 
-Simulator for GovVerify MVP mobile app.
+Python script to simulate the Mobile App behavior for Gov Verify.
+ mobile app.
 
 ## Setup
 

@@ -5,7 +5,6 @@ from cryptography import x509
 from cryptography.hazmat.backends import default_backend
 from cryptography.x509.oid import ExtensionOID
 from cryptography.x509.ocsp import OCSPRequestBuilder, OCSPResponseStatus
-# from cryptography.x509.crl import CertificateRevocationList # Removed incorrect import
 import requests
 import datetime
 from typing import Tuple, List, Optional
@@ -16,7 +15,7 @@ class SSLVerifier:
         Retrieves the certificate chain from the server.
         Note: Python's ssl module doesn't easily give the full chain including root unless configured blindly.
         We will rely on what the server sends and peer certificate.
-        For a robust implementation, we might need to fetch intermediates if missing, but for MVP we assume standard configuration.
+        For a robust implementation, we might need to fetch intermediates if missing.
         """
         context = ssl.create_default_context()
         context.check_hostname = False # We verify manually
@@ -43,7 +42,7 @@ class SSLVerifier:
                     # Note: Getting the full chain including issuer for OCSP check usually requires the issuer to be sent 
                     # or in trust store. `ssock.get_unverified_chain()` is available in recent python? 
                     # No, it's not standard. 
-                    # For MVP, we will primarily check the Leaf Certificate for Revocation and Hostname.
+                    # We will primarily check the Leaf Certificate for Revocation and Hostname.
                     # If we can't get issuer, we can't easily sign OCSP request.
                     
         except Exception as e:

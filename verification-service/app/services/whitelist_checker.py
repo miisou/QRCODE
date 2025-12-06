@@ -3,44 +3,40 @@ import os
 from urllib.parse import urlparse
 from typing import List
 
-class WhitelistChecker:
-    def __init__(self, data_path: str = "app/data/official_domains.json"):
-        # Go up two levels from services/whitelist_checker.py to app/ then to data/
-        # Or relative from execution root. Let's assume execution from verification-service/
-        self.data_path = data_path
-        self._whitelist: List[str] = []
-        self._load_whitelist()
 
-    def _load_whitelist(self):
+class TrustAnchorRepository:
+    def __init__(self, data_path: str = "app/data/official_domains.json"):
+        self.data_path = data_path
+        self._repository: dict = {}
+        self._load_repository()
+
+    def _load_repository(self):
         try:
             with open(self.data_path, "r") as f:
-                self._whitelist = json.load(f)
+                self._repository = json.load(f)
         except Exception as e:
-            print(f"Error loading whitelist: {e}")
-            self._whitelist = []
+            print(f"Error loading TAR: {e}")
+            self._repository = {}
 
     def is_trusted(self, url: str) -> bool:
-        # Reload for MVP dynamic updates
-        self._load_whitelist()
+        # Reload for dynamic updates
+        self._load_repository()
         try:
             parsed = urlparse(url)
             domain = parsed.netloc
-            # Simple check: domain is in whitelist
-            # Ideally we check for "endswith" to allow subdomains if required, 
-            # but MVP checking "gov.pl" vs "podatki.gov.pl" implies exact match or intelligent check.
-            # Plan example: "gov.pl", "podatki.gov.pl" in list. So we check exact match or subdomain.
-            # Let's do exact match for simplicity as per plan, or simple subdomain check.
-            
-            if domain in self._whitelist:
+            # Check for exact match or strict policy logic
+            if domain in self._repository:
                 return True
-            
-            # Allow subdomains if parent is in whitelist? 
-            # For this MVP let's assume the json contains the exact host needed or we check extension.
-            # Let's just iterate and check if domain ends with any allowed domain?
-            # actually "gov.pl" is in the list, so "podatki.gov.pl" should probably match?
-            # But the example list had both. Let's stick to simple list membership for safety.
-            return domain in self._whitelist
+                
+            # TODO: Implement subdomain recursion if policy allows? 
+            # For strict policy, we might only allow exact matches from keys.
+            return False
         except:
             return False
 
-whitelist_checker = WhitelistChecker()
+    def get_policy(self, domain: str) -> dict:
+        return self._repository.get(domain, {})
+
+# Global instance
+trust_anchor_repository = TrustAnchorRepository()
+

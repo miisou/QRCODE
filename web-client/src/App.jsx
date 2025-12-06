@@ -51,7 +51,7 @@ function App() {
   return (
     <div className="container">
       <header>
-        <h1>GovVerify MVP</h1>
+        <h1>GovVerify</h1>
       </header>
       <main>
         {!session ? (

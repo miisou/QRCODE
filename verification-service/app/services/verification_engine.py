@@ -1,15 +1,15 @@
 from datetime import datetime, timezone
 from typing import Dict, Any, Tuple
-from app.services.whitelist_checker import whitelist_checker
+from app.services.whitelist_checker import trust_anchor_repository
 from app.services.ssl_verifier import ssl_verifier
 from urllib.parse import urlparse
 
 class VerificationEngine:
     def __init__(self):
-        self.whitelist_checker = whitelist_checker
+        self.tar = trust_anchor_repository
         self.ssl_verifier = ssl_verifier
 
-    def verify(self, url: str) -> Dict[str, Any]:
+    def verify(self, url: str, web_ip: str = None, mobile_ip: str = None) -> Dict[str, Any]:
         """
         Performs deep verification and calculates Trust Score.
         """
@@ -26,21 +26,38 @@ class VerificationEngine:
                 "logs": ["Invalid URL"],
                 "details": {}
             }
-
+        
         details = {
             "whitelist": "UNKNOWN",
             "ssl_valid": "UNKNOWN",
             "revocation": "UNKNOWN",
             "hostname_match": "UNKNOWN",
-            "chain_integrity": "UNKNOWN"
+            "chain_integrity": "UNKNOWN",
+            "ip_correlation": "SKIPPED"
         }
+
+        # 0. IP Correlation Check (10% penalty? or Flag?)
+        # Plan says: "IP Proximity Check". "If IP mismatch -> Penalty or Fail".
+        # Let's apply a penalty of 15 points if IPs are present and mismatch.
+        # Strict check for now (exact match).
+        if web_ip and mobile_ip:
+            if web_ip == mobile_ip:
+                details["ip_correlation"] = "PASS"
+                logs.append(f"IP Match: {web_ip}")
+            else:
+                details["ip_correlation"] = "FAIL"
+                logs.append(f"IP Mismatch: Web({web_ip}) vs Mobile({mobile_ip})")
+                score -= 20 # Significant penalty but not immediate 0?
+                # Or set to CAUTION if it was trusted 
+        else:
+            logs.append("IP Correlation Skipped (IPs not available)")
 
         # 1. Whitelist Check (40%)
         # If not in whitelist, we drop score significantly or to 0 depending on strictness.
         # Plan says: Whitelist is CRITICAL (40%). 
         # Actually plan says: Status Whitelist vs gov.pl list -> CRITICAL (40). Fail -> Score 0.
         
-        if self.whitelist_checker.is_trusted(url):
+        if self.tar.is_trusted(url):
             details["whitelist"] = "PASS"
             logs.append("Domain is in official whitelist.")
         else:
@@ -82,7 +99,7 @@ class VerificationEngine:
         # 4. Revocation Check (20%)
         # Plan: HIGH (20%). Fail -> Score 0.
         # We need issuer for OCSP. Python's basic SSL doesn't easily give issuer cert unless we fetch full chain.
-        # For MVP, we will attempt check if we can. If we only have leaf, we might skip or try to find issuer URL (AIA).
+        # We will attempt check if we can. If we only have leaf, we might skip or try to find issuer URL (AIA).
         # ssl_verifier.check_revocation handles missing issuer gracefully (skips OCSP if no issuer but tries CRL).
         # However, plan says "Mandatory Real Time Revocation Checks".
         # We passed only leaf cert. Let's assume we can't fully do OCSP without issuer. 

@@ -6,3 +6,4 @@ requests
 user-agents
 cryptography
 pytest
+redis

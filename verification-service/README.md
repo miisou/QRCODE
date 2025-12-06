@@ -1,6 +1,6 @@
 # Verification Service
 
-Backend for GovVerify MVP.
+Backend service for Gov Verify. Built with FastAPI.
 
 ## Setup
 

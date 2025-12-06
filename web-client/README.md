@@ -1,6 +1,6 @@
 # Web Client
 
-Frontend for GovVerify MVP.
+React frontend for Gov Verify.
 
 ## Setup
 

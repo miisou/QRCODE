@@ -1,28 +1,30 @@
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, BackgroundTasks, Request
 import fastapi
 from app.api.models import InitSessionRequest, InitSessionResponse, VerifyTokenRequest, VerifyTokenResponse
 from app.services.session_manager import session_manager
-from app.services.whitelist_checker import whitelist_checker
 from app.core.config import settings
 import time
 from datetime import datetime
 
 router = APIRouter()
 
-@router.post("/session/init", response_model=InitSessionResponse, status_code=status.HTTP_201_CREATED)
-def init_session(request: fastapi.Request, body: InitSessionRequest):
-    # Extract URL from headers
+@router.post("/session/init", response_model=InitSessionResponse)
+async def init_session(request: Request, body: InitSessionRequest):
+    # Get Client URL from header
     client_url = request.headers.get("X-Client-Url")
     if not client_url:
-        # Fallback logic or error? Detailed plan says "extract headers". 
-        # User request: "WC ne sprashivaet url a otpravlyaet svoi v http zagolovke".
-        # Let's enforce it or default to something? 
-        # Ideally, throw error if missing.
-        raise HTTPException(status_code=400, detail="Missing X-Client-Url header")
-    
-    # Extract Metadata
-    user_agent = request.headers.get("User-Agent")
+        # For security/MVP we require this, though strictly it should be validated against a list or regex?
+        # Let's simple check existence
+        # Or maybe it's optional? Plan says "Web Client initiates".
+        # If missing, maybe we can't create specific session?
+        # Let's trigger 422 if missing as it's crucial for verification context (even if we get it from payload?)
+        # Actually payload doesn't have it.
+        # Let's raise error.
+        raise HTTPException(status_code=422, detail="Missing X-Client-Url header")
+
+    # Capture IP and User-Agent from Request
     client_ip = request.client.host if request.client else None
+    user_agent = request.headers.get("User-Agent")
 
     nonce = session_manager.create_session(client_url, ip=client_ip, ua=user_agent)
     
@@ -33,26 +35,29 @@ def init_session(request: fastapi.Request, body: InitSessionRequest):
     )
 
 @router.post("/session/verify", response_model=VerifyTokenResponse)
-def verify_token(request: VerifyTokenRequest):
-    session = session_manager.get_session(request.token)
+async def verify_token(body: VerifyTokenRequest, raw_request: Request, background_tasks: BackgroundTasks):
+    request = body # Alias for easier diff
     
-    # 1. Check Existence
+    # 1. Get Session
+    session = session_manager.get_session(request.token)
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
-    
-    # 2. Check TTL
-    time_elapsed = time.time() - session["created_at"]
-    if time_elapsed > settings.SESSION_TTL:
+        
+    # 2. Check Expiry
+    if session["status"] == "EXPIRED":
         raise HTTPException(status_code=410, detail="Session expired")
-
+    
     # 3. Check Consumed
     if session["status"] == "CONSUMED":
         raise HTTPException(status_code=409, detail="Session already consumed")
     
     # 4. Deep Verification
     url = session["url"]
+    web_ip = session.get("ip")
+    mobile_ip = raw_request.client.host if raw_request.client else None
+    
     from app.services.verification_engine import verification_engine
-    result = verification_engine.verify(url)
+    result = verification_engine.verify(url, web_ip=web_ip, mobile_ip=mobile_ip)
     
     # Update status MOVED TO END
     # session_manager.update_status(request.token, "CONSUMED")

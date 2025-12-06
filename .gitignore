@@ -1,5 +1,13 @@
+# General
+.DS_Store
+*.log
+.idea/
+.vscode/
+*.swp
+*.swo
+
 # Python
-__pycache__/
+**/__pycache__/
 *.py[cod]
 *$py.class
 *.so
@@ -27,13 +35,12 @@ venv/
 env/
 .env/
 ENV/
-env.bak/
-venv.bak/
 
 # Environment Variables
 .env
 .env.local
 .env.*.local
+*.env
 
 # Node.js
 node_modules/
@@ -43,23 +50,18 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 .pnpm-store
+dist/
+build/
+coverage/
 
-# IDEs and Editors
-.idea/
-.vscode/
-*.swp
-*.swo
-.DS_Store
-.project
-.settings/
-*.sublime-workspace
-*.sublime-project
+# Web Client specific
+web-client/dist/
+web-client/build/
+web-client/.eslintcache
 
-# OS Generated
-.DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
-Thumbs.db
+# Mobile Client specific
+mobile-client/venv/
+
+# Verification Service specific
+verification-service/venv/
+verification-service/.pytest_cache/
