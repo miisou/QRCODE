@@ -16,13 +16,19 @@ To simulate scanning a QR code:
 python client.py <TOKEN_FROM_WEB_CLIENT>
 ```
 
-## Running Automated Tests
+## Automated Tests
 
-You can run the full suite of verification scenarios using the `verify_all.py` script.
-Ensure the Backend (`verification-service`) is running first.
-
+### 1. Functional Verification Suite (verify_all.py)
+Tests the full verification flow against various scenarios (Good, Phishing, Bad SSL, Tar Recursion).
 ```bash
 python verify_all.py
+```
+
+### 2. Rate Limiting Stress Test (test_rate_limit.py)
+Tests the Redis-backed rate limiter (20 requests/minute).
+**Note:** Run this separately from `verify_all.py` to avoid shared quota conflicts.
+```bash
+python test_rate_limit.py
 ```
 
 Run automated verification suite:
