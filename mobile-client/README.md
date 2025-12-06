@@ -8,11 +8,20 @@ Simulator for GovVerify MVP mobile app.
 2.  Activate: `source venv/bin/activate`
 3.  Install deps: `pip install -r requirements.txt`
 
-## Running
+## Running the Simulator
 
-Verify a specific token:
+To simulate scanning a QR code:
 ```bash
-./venv/bin/python client.py <TOKEN>
+python client.py <TOKEN_FROM_WEB_CLIENT>
+```
+
+## Running Automated Tests
+
+You can run the full suite of verification scenarios using the `verify_all.py` script.
+Ensure the Backend (`verification-service`) is running first.
+
+```bash
+python verify_all.py
 ```
 
 Run automated verification suite:

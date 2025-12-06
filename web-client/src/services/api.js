@@ -27,7 +27,13 @@ export const verifySession = async (token) => {
     // But maybe we want to poll status? The MVP plan didn't specify polling.
     // The MVP plan says "WC stops network activity".
     // So we don't need verify here.
+    // So we don't need verify here.
     return;
+};
+
+export const pollSession = async (nonce) => {
+    const response = await api.get(`/session/poll/${nonce}`);
+    return response.data;
 };
 
 export default api;

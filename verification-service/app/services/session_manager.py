@@ -15,7 +15,8 @@ class SessionManager:
             "created_at": time.time(),
             "status": "PENDING",
             "ip": ip,
-            "ua": ua
+            "ua": ua,
+            "result": None
         }
         return nonce
 
@@ -37,8 +38,13 @@ class SessionManager:
             
         return session
     
-    def update_status(self, nonce: str, status: Literal["CONSUMED"]) -> None:
+            
+        return session
+    
+    def update_status(self, nonce: str, status: Literal["CONSUMED"], result: Optional[dict] = None) -> None:
         if nonce in self._store:
             self._store[nonce]["status"] = status
+            if result:
+                self._store[nonce]["result"] = result
 
 session_manager = SessionManager()

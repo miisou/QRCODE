@@ -8,11 +8,24 @@ Backend for GovVerify MVP.
 2.  Activate: `source venv/bin/activate`
 3.  Install dependencies: `pip install -r requirements.txt`
 
-## Running
+## running the server
 
 Run the server:
 ```bash
 ./run.sh
+```
+
+## Running Tests
+
+The service includes integration tests using `badssl.com` to verify SSL logic.
+
+```bash
+# Install test dependencies
+pip install pytest
+
+# Run tests (ensure PYTHONPATH is set)
+export PYTHONPATH=$PYTHONPATH:$(pwd)
+python3 -m pytest tests/test_ssl.py
 ```
 Server runs on `http://localhost:8000`.
 

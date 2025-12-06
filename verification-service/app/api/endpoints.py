@@ -49,15 +49,13 @@ def verify_token(request: VerifyTokenRequest):
     if session["status"] == "CONSUMED":
         raise HTTPException(status_code=409, detail="Session already consumed")
     
-    # 4. Whitelist Check
+    # 4. Deep Verification
     url = session["url"]
-    is_trusted = whitelist_checker.is_trusted(url)
+    from app.services.verification_engine import verification_engine
+    result = verification_engine.verify(url)
     
-    # Update status
-    session_manager.update_status(request.token, "CONSUMED")
-    
-    verdict = "TRUSTED" if is_trusted else "UNSAFE"
-    
+    # Update status MOVED TO END
+    # session_manager.update_status(request.token, "CONSUMED")
     
     # Parse User Agent
     ua_string = session.get("ua")
@@ -77,8 +75,9 @@ def verify_token(request: VerifyTokenRequest):
         except:
             pass
 
-    return VerifyTokenResponse(
-        verdict=verdict,
+    
+    response_data = VerifyTokenResponse(
+        verdict=result["verdict"],
         checked_url=url,
         timestamp=datetime.utcnow().isoformat() + "Z",
         client_ip=session.get("ip"),
@@ -86,5 +85,29 @@ def verify_token(request: VerifyTokenRequest):
         device_os=device_os,
         device_browser=device_browser,
         device_brand=device_brand,
-        is_mobile=is_mobile
+        is_mobile=is_mobile,
+        trust_score=result["score"],
+        logs=result["logs"],
+        details=result["details"]
+    )
+    
+    # Update status and SAVE RESULT
+    session_manager.update_status(request.token, "CONSUMED", response_data.model_dump())
+
+    return response_data
+
+from app.api.models import PollSessionResponse
+
+@router.get("/session/poll/{nonce}", response_model=PollSessionResponse)
+def poll_session(nonce: str):
+    session = session_manager.get_session(nonce)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    status = session.get("status")
+    result = session.get("result")
+    
+    return PollSessionResponse(
+        status=status,
+        result=result
     )

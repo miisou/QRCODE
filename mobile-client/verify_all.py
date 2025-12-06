@@ -49,7 +49,14 @@ def main():
     test_scenario("https://podatki.gov.pl/zaloguj", "TRUSTED")
     test_scenario("https://evil.com/login", "UNSAFE")
     test_scenario("http://fake-gov.pl", "UNSAFE")
-    test_scenario("http://localhost:5174/", "TRUSTED")
+    test_scenario("http://localhost:5174/", "UNSAFE") # Unsafe because not in whitelist/no SSL
+    
+    print("\n--- Additional SSL Scenarios (badssl.com) ---")
+    test_scenario("https://sha256.badssl.com/", "TRUSTED") # Valid SSL
+    test_scenario("https://expired.badssl.com/", "UNSAFE") # Expired
+    test_scenario("https://wrong.host.badssl.com/", "UNSAFE") # Wrong Hostname
+    test_scenario("https://revoked.badssl.com/", "UNSAFE") # Revoked
+    
     print("\nDone.")
 
 if __name__ == "__main__":
