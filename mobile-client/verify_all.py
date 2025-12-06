@@ -1,0 +1,49 @@
+import requests
+from config import API_URL
+import time
+
+def test_scenario(url, expected_verdict):
+    print(f"--- Testing URL: {url} ---")
+    
+    # 1. Init Session
+    try:
+        init_resp = requests.post(f"{API_URL}/session/init", json={"url": url})
+        init_resp.raise_for_status()
+        data = init_resp.json()
+        nonce = data["nonce"]
+        print(f"Session Initialized. Nonce: {nonce}")
+    except Exception as e:
+        print(f"Failed to init session: {e}")
+        return
+
+    # 2. Verify Token
+    try:
+        # Simulate mobile client delay
+        time.sleep(1) 
+        verify_resp = requests.post(f"{API_URL}/session/verify", json={"token": nonce})
+        verify_resp.raise_for_status()
+        verify_data = verify_resp.json()
+        
+        verdict = verify_data["verdict"]
+        print(f"Verification Verdict: {verdict}")
+        
+        if verdict == expected_verdict:
+            print("✅ SUCCESS")
+        else:
+            print(f"❌ FAILED. Expected {expected_verdict}, got {verdict}")
+            
+    except Exception as e:
+        print(f"Failed to verify: {e}")
+        if verify_resp:
+            print(verify_resp.text)
+
+def main():
+    print("Running Verification Suit...\n")
+    test_scenario("https://gov.pl", "TRUSTED")
+    test_scenario("https://podatki.gov.pl/zaloguj", "TRUSTED")
+    test_scenario("https://evil.com/login", "UNSAFE")
+    test_scenario("http://fake-gov.pl", "UNSAFE")
+    print("\nDone.")
+
+if __name__ == "__main__":
+    main()
