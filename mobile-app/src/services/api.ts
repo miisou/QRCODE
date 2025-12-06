@@ -4,7 +4,8 @@ import { Platform } from 'react-native';
 // You can change this to your machine's IP, e.g., 'http://192.168.1.5:8000/api/v1'
 // For USB Debugging with Expo Go, we use localhost.
 // YOU MUST RUN: adb reverse tcp:8000 tcp:8000
-const BASE_URL = 'http://localhost:8000/api/v1';
+const BASE_URL = 'https://bebra-verifier.onrender.com/api/v1';
+// const BASE_URL = 'http://localhost:8000/api/v1';
 
 export interface VerificationResult {
     verdict: 'TRUSTED' | 'UNSAFE' | 'UNKNOWN';

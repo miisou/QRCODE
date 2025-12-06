@@ -5,7 +5,10 @@ import { Svg, Defs, Rect, Mask } from 'react-native-svg';
 import { verifyToken, VerificationResult } from '../src/services/api';
 
 export default function App() {
+    console.log("App Rendering...");
     const [permission, requestPermission] = useCameraPermissions();
+    console.log("Permission state:", permission);
+
     const [scanned, setScanned] = useState(false);
     const [loading, setLoading] = useState(false);
     const [result, setResult] = useState<VerificationResult | null>(null);
@@ -13,7 +16,12 @@ export default function App() {
 
     if (!permission) {
         // Camera permissions are still loading.
-        return <View />;
+        return (
+            <View style={styles.container}>
+                <ActivityIndicator size="large" color="#fff" />
+                <Text style={styles.message}>Loading Camera Permissions...</Text>
+            </View>
+        );
     }
 
     if (!permission.granted) {
@@ -33,8 +41,33 @@ export default function App() {
         setLoading(true);
         setModalVisible(true);
 
+        console.log("Raw QR Data:", data);
+
+        // Parse Token from URL (e.g., myapp://verify?token=XYZ -> XYZ)
+        let token = data;
+        try {
+            if (data.includes("token=")) {
+                const urlObj = new URL(data);
+                const extracted = urlObj.searchParams.get("token");
+                if (extracted) token = extracted;
+            } else if (data.includes("?")) {
+                // Fallback if URL parsing fails on non-standard schemes
+                const parts = data.split("token=");
+                if (parts.length > 1) token = parts[1].split("&")[0];
+            }
+        } catch (e) {
+            console.log("Error parsing token URL:", e);
+            // Fallback for simple split
+            if (data.includes("token=")) {
+                const parts = data.split("token=");
+                if (parts.length > 1) token = parts[1].split("&")[0];
+            }
+        }
+
+        console.log("Extracted Token:", token);
+
         // Call API
-        const verification = await verifyToken(data);
+        const verification = await verifyToken(token);
 
         setResult(verification);
         setLoading(false);
