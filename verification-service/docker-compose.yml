@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  verification-service:
+    build: .
+    ports:
+      - "8001:8000"
+    environment:
+      - REDIS_HOST=redis://red-d4q9e615pdvs738kd630
+      - REDIS_PORT=6379
+    depends_on:
+      - redis
+    networks:
+      - verify-net
+
+  redis:
+    image: redis:alpine
+    ports:
+      - "6380:6379"
+    networks:
+      - verify-net
+
+networks:
+  verify-net:
+    driver: bridge

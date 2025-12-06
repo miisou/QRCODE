@@ -60,19 +60,65 @@ function App() {
             expirationMessage={expirationMessage}
           />
         ) : (
-          <QRCodeDisplay
+          <>
+            <QRCodeDisplay
 
-            // Actually Mobile client manually enters token or scans?
-            // Plan: "WC renders QR containing xyz" (nonce) or full payload.
-            // Plan Step 1: "qr_payload: myapp://verify?token=a1b2..."
-            // Plan Step 2: "Please enter token manually... user enters xyz".
-            // If scanning, full payload is better. If manual entry, just nonce.
-            // Let's display Nonce text AND QR of payload.
-            // Pass session.qr_payload to QR, session.nonce to display text.
-            value={session.qr_payload}
-            initialTtl={session.expires_in}
-            onExpire={handleExpire}
-          />
+              // Actually Mobile client manually enters token or scans?
+              // Plan: "WC renders QR containing xyz" (nonce) or full payload.
+              // Plan Step 1: "qr_payload: myapp://verify?token=a1b2..."
+              // Plan Step 2: "Please enter token manually... user enters xyz".
+              // If scanning, full payload is better. If manual entry, just nonce.
+              // Let's display Nonce text AND QR of payload.
+              // Pass session.qr_payload to QR, session.nonce to display text.
+              value={session.qr_payload}
+              initialTtl={session.expires_in}
+              onExpire={handleExpire}
+            />
+            <div style={{
+              marginTop: '20px',
+              padding: '15px',
+              backgroundColor: '#f5f5f5',
+              borderRadius: '8px',
+              textAlign: 'center'
+            }}>
+              <p style={{ margin: '0 0 10px 0', fontWeight: 'bold' }}>Token (Nonce):</p>
+              <div style={{
+                display: 'flex',
+                gap: '10px',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}>
+                <code style={{
+                  padding: '8px 12px',
+                  backgroundColor: '#fff',
+                  border: '1px solid #ddd',
+                  borderRadius: '4px',
+                  fontSize: '14px',
+                  fontFamily: 'monospace',
+                  wordBreak: 'break-all'
+                }}>
+                  {session.nonce}
+                </code>
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(session.nonce);
+                    alert('Token copied to clipboard!');
+                  }}
+                  style={{
+                    padding: '8px 16px',
+                    backgroundColor: '#007bff',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                    fontSize: '14px'
+                  }}
+                >
+                  Copy
+                </button>
+              </div>
+            </div>
+          </>
         )}
 
         {session && session.result && (

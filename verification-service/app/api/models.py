@@ -14,7 +14,7 @@ class VerifyTokenRequest(BaseModel):
     token: str
 
 class VerifyTokenResponse(BaseModel):
-    verdict: Literal["TRUSTED", "UNSAFE", "ERROR"]
+    verdict: Literal["TRUSTED", "CAUTION", "UNSAFE", "ERROR"]
     checked_url: str | None = None
     timestamp: str | None = None
     client_ip: str | None = None

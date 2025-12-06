@@ -8,8 +8,12 @@ from app.core.security import generate_nonce
 class SessionManager:
     def __init__(self):
         # Redis connection
-        # Improve: Get URL from settings
-        self.redis = redis.Redis(host='localhost', port=6379, db=0, decode_responses=True)
+        self.redis = redis.Redis(
+            host=settings.REDIS_HOST, 
+            port=settings.REDIS_PORT, 
+            db=0, 
+            decode_responses=True
+        )
 
     def create_session(self, url: str, ip: str = None, ua: str = None) -> str:
         nonce = generate_nonce()
@@ -30,7 +34,7 @@ class SessionManager:
         return nonce
 
     def get_session(self, nonce: str) -> Optional[dict]:
-        data = self.redis.get(f"session:{nonce}")
+        data = self.redis.get(f"session:{nonce}")        
         if not data:
             return {"status": "EXPIRED"} # Or None, but logic expects object for status check
         

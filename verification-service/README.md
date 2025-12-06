@@ -15,6 +15,42 @@ Run the server:
 ./run.sh
 ```
 
+## Running with Docker
+
+## Running with Docker
+
+You can run the service using standard Docker Compose (v2):
+
+```bash
+docker compose up --build
+```
+Or simply use the helper script:
+```bash
+./start.sh
+```
+
+This will start the verification service on port 8001 (mapped to container 8000) and a Redis instance on port 6380.
+
+To run only the verification service container:
+```bash
+docker build -t verification-service .
+docker run -p 8000:8000 --env REDIS_HOST=host.docker.internal verification-service
+```
+(Note: `host.docker.internal` is used to access localhost from container on some systems; otherwise ensure Redis is accessible).
+
+## Deployment
+
+To deploy to Docker Hub, use the provided script:
+
+```bash
+./deploy.sh <YOUR_DOCKER_HUB_USERNAME>
+```
+
+This script will:
+1. Build the image.
+2. Run it locally to verify it starts and responds to `/docs`.
+3. Push it to Docker Hub under your username.
+
 ## Running Tests
 
 The service includes integration tests using `badssl.com` to verify SSL logic.

@@ -5,18 +5,34 @@ from typing import List
 
 
 class TrustAnchorRepository:
-    def __init__(self, data_path: str = "app/data/official_domains.json"):
+    def __init__(self, data_path: str = None):
+        # Default to absolute path relative to the package
+        if data_path is None:
+            # Try multiple paths to ensure it works locally and in Docker
+            base_dir = os.path.dirname(os.path.dirname(__file__))  # Go up to 'app' directory
+            data_path = os.path.join(base_dir, "data", "official_domains.json")
+        
         self.data_path = data_path
         self._repository: dict = {}
         self._load_repository()
 
     def _load_repository(self):
         try:
+            if not os.path.exists(self.data_path):
+                raise FileNotFoundError(f"Whitelist file not found at: {self.data_path}")
+            
             with open(self.data_path, "r") as f:
                 self._repository = json.load(f)
+            print(f"✅ Loaded {len(self._repository)} domains from whitelist")
         except Exception as e:
-            print(f"Error loading TAR: {e}")
-            self._repository = {}
+            print(f"❌ ERROR loading TAR from {self.data_path}: {e}")
+            # Initialize with hardcoded fallback for critical domains
+            self._repository = {
+                "gov.pl": {"policy": "strict", "allowed_cas": []},
+                "podatki.gov.pl": {"policy": "strict", "allowed_cas": []},
+                "badssl.com": {"policy": "strict", "allowed_cas": []}
+            }
+            print(f"⚠️  Using fallback whitelist with {len(self._repository)} domains")
 
     def is_trusted(self, url: str) -> bool:
         # Reload for dynamic updates

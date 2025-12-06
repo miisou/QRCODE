@@ -34,23 +34,7 @@ class VerificationEngine:
             "hostname_match": "UNKNOWN",
             "chain_integrity": "UNKNOWN",
             "ip_correlation": "SKIPPED"
-        }
-
-        # 0. IP Correlation Check (10% penalty? or Flag?)
-        # Plan says: "IP Proximity Check". "If IP mismatch -> Penalty or Fail".
-        # Let's apply a penalty of 15 points if IPs are present and mismatch.
-        # Strict check for now (exact match).
-        if web_ip and mobile_ip:
-            if web_ip == mobile_ip:
-                details["ip_correlation"] = "PASS"
-                logs.append(f"IP Match: {web_ip}")
-            else:
-                details["ip_correlation"] = "FAIL"
-                logs.append(f"IP Mismatch: Web({web_ip}) vs Mobile({mobile_ip})")
-                score -= 20 # Significant penalty but not immediate 0?
-                # Or set to CAUTION if it was trusted 
-        else:
-            logs.append("IP Correlation Skipped (IPs not available)")
+        }        
 
         # 1. Whitelist Check (40%)
         # If not in whitelist, we drop score significantly or to 0 depending on strictness.

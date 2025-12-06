@@ -15,7 +15,7 @@ def verify_token(token):
             
             if data['verdict'] == "TRUSTED":
                 print("✅ The website is SAFE and OFFICIAL.")
-            elif data['verdict'] == "CAUTION":
+            elif data['verdict'] == "UNSAFE":
                 print("⚠️  The website is trusted but has warnings.")
             else:
                 print("❌ WARNING: The website is UNSAFE! Do not enter data.")
