@@ -1,288 +1,212 @@
-import { CameraView, useCameraPermissions, CameraType, BarcodeScanningResult } from 'expo-camera';
-import { useState } from 'react';
-import { Button, StyleSheet, Text, TouchableOpacity, View, Modal, ActivityIndicator } from 'react-native';
-import { Svg, Defs, Rect, Mask } from 'react-native-svg';
-import { verifyToken, VerificationResult } from '../src/services/api';
+import { View, Text, StyleSheet, TouchableOpacity, Image, ScrollView, SafeAreaView, StatusBar } from 'react-native';
+import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
+import { BlurView } from 'expo-blur'; // Note: Might need install, otherwise fallback to View
 
-export default function App() {
-    console.log("App Rendering...");
-    const [permission, requestPermission] = useCameraPermissions();
-    console.log("Permission state:", permission);
+export default function MenuScreen() {
+    const router = useRouter();
 
-    const [scanned, setScanned] = useState(false);
-    const [loading, setLoading] = useState(false);
-    const [result, setResult] = useState<VerificationResult | null>(null);
-    const [modalVisible, setModalVisible] = useState(false);
-
-    if (!permission) {
-        // Camera permissions are still loading.
-        return (
-            <View style={styles.container}>
-                <ActivityIndicator size="large" color="#fff" />
-                <Text style={styles.message}>Loading Camera Permissions...</Text>
+    const MenuButton = ({ icon, title, subtitle, onPress, isActive = false }) => (
+        <TouchableOpacity
+            style={[styles.card, isActive && styles.cardActive]}
+            onPress={onPress}
+            activeOpacity={0.7}
+        >
+            <View style={styles.iconContainer}>
+                <Ionicons name={icon} size={28} color="#fff" />
             </View>
-        );
-    }
-
-    if (!permission.granted) {
-        // Camera permissions are not granted yet.
-        return (
-            <View style={styles.container}>
-                <Text style={styles.message}>We need your permission to show the camera</Text>
-                <Button onPress={requestPermission} title="grant permission" />
+            <View style={styles.textContainer}>
+                <Text style={styles.cardTitle}>{title}</Text>
+                <Text style={styles.cardSubtitle}>{subtitle}</Text>
             </View>
-        );
-    }
-
-    const handleBarCodeScanned = async ({ data }: BarcodeScanningResult) => {
-        if (scanned || loading) return;
-
-        setScanned(true);
-        setLoading(true);
-        setModalVisible(true);
-
-        console.log("Raw QR Data:", data);
-
-        // Parse Token from URL (e.g., myapp://verify?token=XYZ -> XYZ)
-        let token = data;
-        try {
-            if (data.includes("token=")) {
-                const urlObj = new URL(data);
-                const extracted = urlObj.searchParams.get("token");
-                if (extracted) token = extracted;
-            } else if (data.includes("?")) {
-                // Fallback if URL parsing fails on non-standard schemes
-                const parts = data.split("token=");
-                if (parts.length > 1) token = parts[1].split("&")[0];
-            }
-        } catch (e) {
-            console.log("Error parsing token URL:", e);
-            // Fallback for simple split
-            if (data.includes("token=")) {
-                const parts = data.split("token=");
-                if (parts.length > 1) token = parts[1].split("&")[0];
-            }
-        }
-
-        console.log("Extracted Token:", token);
-
-        // Call API
-        const verification = await verifyToken(token);
-
-        setResult(verification);
-        setLoading(false);
-    };
-
-    const closeModal = () => {
-        setModalVisible(false);
-        setScanned(false);
-        setResult(null);
-    };
+            <Ionicons name="chevron-forward" size={24} color="#666" />
+        </TouchableOpacity>
+    );
 
     return (
-        <View style={styles.container}>
-            <CameraView
-                style={styles.camera}
-                facing="back"
-                onBarcodeScanned={scanned ? undefined : handleBarCodeScanned}
-                barcodeScannerSettings={{
-                    barcodeTypes: ["qr"],
-                }}
-            >
-                {/* Overlay */}
-                <View style={styles.overlay}>
-                    <View style={[styles.corner, styles.topLeft]} />
-                    <View style={[styles.corner, styles.topRight]} />
-                    <View style={[styles.corner, styles.bottomLeft]} />
-                    <View style={[styles.corner, styles.bottomRight]} />
-                    <Text style={styles.overlayText}>Align QR Code within the frame</Text>
-                </View>
-            </CameraView>
+        <SafeAreaView style={styles.container}>
+            <StatusBar barStyle="light-content" />
+            <ScrollView contentContainerStyle={styles.scrollContent}>
 
-            {/* Result Modal */}
-            <Modal
-                animationType="slide"
-                transparent={true}
-                visible={modalVisible}
-                onRequestClose={closeModal}
-            >
-                <View style={styles.modalCenteredView}>
-                    <View style={[
-                        styles.modalView,
-                        result?.verdict === 'TRUSTED' ? styles.trustedBorder :
-                            result?.verdict === 'UNSAFE' ? styles.unsafeBorder : styles.unknownBorder
-                    ]}>
-                        {loading ? (
-                            <View>
-                                <ActivityIndicator size="large" color="#0a7ea4" />
-                                <Text style={styles.modalText}>Verifying Token...</Text>
-                            </View>
-                        ) : result ? (
-                            <>
-                                <Text style={[
-                                    styles.verdictText,
-                                    result.verdict === 'TRUSTED' ? styles.textTrusted :
-                                        result.verdict === 'UNSAFE' ? styles.textUnsafe : styles.textUnknown
-                                ]}>
-                                    {result.verdict}
-                                </Text>
-
-                                <View style={styles.detailsContainer}>
-                                    <Text style={styles.detailLabel}>URL:</Text>
-                                    <Text style={styles.detailValue}>{result.checked_url || 'N/A'}</Text>
-
-                                    <Text style={styles.detailLabel}>Device:</Text>
-                                    <Text style={styles.detailValue}>{result.device_brand || 'Unknown'}</Text>
-                                </View>
-
-                                <TouchableOpacity
-                                    style={[styles.button, styles.buttonClose]}
-                                    onPress={closeModal}>
-                                    <Text style={styles.textStyle}>Scan Again</Text>
-                                </TouchableOpacity>
-                            </>
-                        ) : (
-                            <>
-                                <Text style={[styles.verdictText, styles.textUnsafe]}>ERROR</Text>
-                                <Text style={styles.modalText}>Could not verify token.</Text>
-                                <TouchableOpacity
-                                    style={[styles.button, styles.buttonClose]}
-                                    onPress={closeModal}>
-                                    <Text style={styles.textStyle}>Try Again</Text>
-                                </TouchableOpacity>
-                            </>
-                        )}
+                {/* Header */}
+                <View style={styles.header}>
+                    <View style={styles.logoContainer}>
+                        <Image
+                            source={require('../assets/images/icon.png')} // Fallback to app icon, user didn't provide logo asset
+                            style={styles.logo}
+                        />
                     </View>
+                    <Text style={styles.title}>QR code</Text>
                 </View>
-            </Modal>
-        </View>
+
+                <Text style={styles.description}>
+                    This function allows you to log in to online services and confirm digital documents, both yours and those of another person.
+                </Text>
+
+                {/* Buttons List */}
+                <View style={styles.listContainer}>
+
+                    {/* Mock Button 1 */}
+                    <MenuButton
+                        icon="scan-outline"
+                        title="Scan the QR code"
+                        subtitle="Log in to the website or confirm your digital document."
+                        onPress={() => { }}
+                    />
+
+                    {/* Mock Button 2 */}
+                    <MenuButton
+                        icon="qr-code-outline"
+                        title="Show the QR code"
+                        subtitle="Check the other person's digital document."
+                        onPress={() => { }}
+                    />
+
+                    {/* Mock Button 3 */}
+                    <MenuButton
+                        icon="document-text-outline"
+                        title="Scan the QR code for the qualified signature"
+                        subtitle="Select, if you want to use the code from the signature provider's website."
+                        onPress={() => { }}
+                    />
+
+                    {/* Real Scanner Button */}
+                    <MenuButton
+                        icon="shield-checkmark"
+                        title="GovVerify Scanner"
+                        subtitle="Verify government websites."
+                        onPress={() => router.push('/scanner')}
+                        isActive={true}
+                    />
+
+                </View>
+            </ScrollView>
+
+            {/* Mock Tab Bar */}
+            <View style={styles.tabBar}>
+                <View style={styles.tabItem}>
+                    <Ionicons name="folder-outline" size={24} color="#666" />
+                    <Text style={styles.tabLabel}>Documents</Text>
+                </View>
+                <View style={styles.tabItem}>
+                    <Ionicons name="grid-outline" size={24} color="#666" />
+                    <Text style={styles.tabLabel}>Services</Text>
+                </View>
+                <View style={styles.tabItem}>
+                    <View style={styles.activeTabIcon}>
+                        <Ionicons name="qr-code" size={24} color="#5FA9EE" />
+                    </View>
+                    <Text style={[styles.tabLabel, styles.activeTabLabel]}>QR code</Text>
+                </View>
+                <View style={styles.tabItem}>
+                    <Ionicons name="grid" size={24} color="#666" />
+                    <Text style={styles.tabLabel}>More</Text>
+                </View>
+            </View>
+        </SafeAreaView>
     );
 }
 
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        justifyContent: 'center',
-        backgroundColor: '#000',
+        backgroundColor: '#0D1117', // Very dark background
     },
-    message: {
-        textAlign: 'center',
-        paddingBottom: 10,
-        color: '#fff',
+    scrollContent: {
+        padding: 20,
+        paddingBottom: 100, // Space for tab bar
     },
-    camera: {
-        flex: 1,
-    },
-    overlay: {
-        flex: 1,
-        backgroundColor: 'transparent',
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    overlayText: {
-        position: 'absolute',
-        bottom: 100,
-        color: 'rgba(255,255,255,0.7)',
-        fontSize: 16,
-    },
-    corner: {
-        position: 'absolute',
-        width: 60,
-        height: 60,
-        borderColor: '#0a7ea4',
-        borderWidth: 5,
-    },
-    topLeft: {
-        top: '35%',
-        left: '15%',
-        borderRightWidth: 0,
-        borderBottomWidth: 0,
-    },
-    topRight: {
-        top: '35%',
-        right: '15%',
-        borderLeftWidth: 0,
-        borderBottomWidth: 0,
-    },
-    bottomLeft: {
-        bottom: '35%',
-        left: '15%',
-        borderRightWidth: 0,
-        borderTopWidth: 0,
-    },
-    bottomRight: {
-        bottom: '35%',
-        right: '15%',
-        borderLeftWidth: 0,
-        borderTopWidth: 0,
-    },
-    // Modal Styles
-    modalCenteredView: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-        backgroundColor: 'rgba(0,0,0,0.8)',
-    },
-    modalView: {
-        margin: 20,
-        backgroundColor: '#1a1a1a',
-        borderRadius: 20,
-        padding: 35,
-        alignItems: 'center',
-        shadowColor: '#000',
-        shadowOffset: {
-            width: 0,
-            height: 2,
-        },
-        shadowOpacity: 0.25,
-        shadowRadius: 4,
-        elevation: 5,
-        width: '80%',
-        borderWidth: 2,
-    },
-    trustedBorder: { borderColor: '#4caf50' },
-    unsafeBorder: { borderColor: '#f44336' },
-    unknownBorder: { borderColor: '#ff9800' },
-    button: {
-        borderRadius: 20,
-        padding: 10,
-        elevation: 2,
+    header: {
         marginTop: 20,
-        minWidth: 120,
-    },
-    buttonClose: {
-        backgroundColor: '#2196F3',
-    },
-    textStyle: {
-        color: 'white',
-        fontWeight: 'bold',
-        textAlign: 'center',
-    },
-    modalText: {
-        marginBottom: 15,
-        textAlign: 'center',
-        color: '#fff',
-    },
-    verdictText: {
-        fontSize: 24,
-        fontWeight: 'bold',
         marginBottom: 20,
     },
-    textTrusted: { color: '#4caf50' },
-    textUnsafe: { color: '#f44336' },
-    textUnknown: { color: '#ff9800' },
-    detailsContainer: {
-        width: '100%',
-        marginVertical: 10,
+    logoContainer: {
+        width: 40,
+        height: 40,
+        backgroundColor: '#D32F2F', // Red bg for logo mock
+        borderRadius: 8,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginBottom: 15,
     },
-    detailLabel: {
+    logo: {
+        width: 30,
+        height: 30,
+        resizeMode: 'contain',
+        tintColor: '#fff',
+    },
+    title: {
+        fontSize: 32,
+        fontWeight: 'bold',
+        color: '#fff',
+    },
+    description: {
+        fontSize: 16,
+        color: '#aaa',
+        lineHeight: 24,
+        marginBottom: 30,
+    },
+    listContainer: {
+        gap: 16,
+    },
+    card: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#1C1C1E',
+        borderRadius: 16,
+        padding: 20,
+    },
+    cardActive: {
+        backgroundColor: '#161B22', // Slightly different for active or just keep same
+        borderWidth: 1,
+        borderColor: '#5FA9EE',
+    },
+    iconContainer: {
+        marginRight: 16,
+    },
+    textContainer: {
+        flex: 1,
+        marginRight: 10,
+    },
+    cardTitle: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: '#fff',
+        marginBottom: 4,
+    },
+    cardSubtitle: {
+        fontSize: 13,
         color: '#888',
-        fontSize: 12,
+        lineHeight: 18,
+    },
+    // Tab Bar
+    tabBar: {
+        position: 'absolute',
+        bottom: 0,
+        left: 0,
+        right: 0,
+        height: 85,
+        backgroundColor: '#0D1117',
+        flexDirection: 'row',
+        justifyContent: 'space-around',
+        alignItems: 'flex-start',
+        paddingTop: 15,
+        borderTopWidth: 1,
+        borderTopColor: '#222',
+    },
+    tabItem: {
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    activeTabIcon: {
+        marginBottom: 0,
+    },
+    tabLabel: {
+        fontSize: 10,
+        color: '#666',
         marginTop: 5,
     },
-    detailValue: {
-        color: '#fff',
-        fontSize: 16,
-        marginBottom: 5,
+    activeTabLabel: {
+        color: '#5FA9EE',
     },
 });
