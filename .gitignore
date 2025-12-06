@@ -1,3 +1,48 @@
 __pycache__/
 .venv/
 .env*
+
+# Python
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+pip-wheel-metadata/
+site/
+venv/
+env/
+
+# Node / JS (web-client)
+node_modules/
+dist/
+build/
+.parcel-cache/
+.eslintcache
+.cache/
+.vercel/
+.turbo/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+*.log
+
+# OS junk
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE
+.vscode/
+.idea/
+
+# .NET leftovers (old simulator)
+bin/
+obj/
+
+# Coverage / reports
+coverage/
+.nyc_output/
+
