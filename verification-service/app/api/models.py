@@ -19,4 +19,8 @@ class VerifyTokenResponse(BaseModel):
     timestamp: str | None = None
     client_ip: str | None = None
     user_agent: str | None = None
+    device_os: str | None = None
+    device_browser: str | None = None
+    device_brand: str | None = None
+    is_mobile: bool | None = None
 

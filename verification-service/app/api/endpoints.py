@@ -58,10 +58,33 @@ def verify_token(request: VerifyTokenRequest):
     
     verdict = "TRUSTED" if is_trusted else "UNSAFE"
     
+    
+    # Parse User Agent
+    ua_string = session.get("ua")
+    device_os = None
+    device_browser = None
+    device_brand = None
+    is_mobile = None
+
+    if ua_string:
+        try:
+            from user_agents import parse
+            ua = parse(ua_string)
+            device_os = ua.os.family
+            device_browser = ua.browser.family
+            device_brand = ua.device.brand
+            is_mobile = ua.is_mobile
+        except:
+            pass
+
     return VerifyTokenResponse(
         verdict=verdict,
         checked_url=url,
         timestamp=datetime.utcnow().isoformat() + "Z",
         client_ip=session.get("ip"),
-        user_agent=session.get("ua")
+        user_agent=ua_string,
+        device_os=device_os,
+        device_browser=device_browser,
+        device_brand=device_brand,
+        is_mobile=is_mobile
     )

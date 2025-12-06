@@ -10,7 +10,7 @@ def test_scenario(url, expected_verdict):
         # Update: Send URL in headers, add User-Agent
         headers = {
             "X-Client-Url": url,
-            "User-Agent": "MobileVerifier/1.0"
+            "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1"
         }
         # Body is now empty/ignored for URL
         init_resp = requests.post(f"{API_URL}/session/init", json={}, headers=headers)

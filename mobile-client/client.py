@@ -13,6 +13,8 @@ def verify_token(token):
             print(f"URL: {data.get('checked_url')}")
             print(f"Client IP: {data.get('client_ip')}")
             print(f"User Agent: {data.get('user_agent')}")
+            print(f"Device: {data.get('device_brand')} {data.get('device_os')} {data.get('device_browser')}")
+            print(f"Is Mobile: {data.get('is_mobile')}")
             if data['verdict'] == "TRUSTED":
                 print("The website is SAFE.")
             else:
