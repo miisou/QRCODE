@@ -10,6 +10,7 @@ function App() {
 
   const handleGenerate = async () => {
     setLoading(true);
+    setExpirationMessage(null);
     try {
       const data = await initSession();
       setSession(data);
@@ -19,10 +20,11 @@ function App() {
       setLoading(false);
     }
   };
+  const [expirationMessage, setExpirationMessage] = useState(null);
 
   const handleExpire = () => {
     setSession(null);
-    alert("Session expired. Please try again.");
+    setExpirationMessage("Token expired");
   };
 
   return (
@@ -32,7 +34,10 @@ function App() {
       </header>
       <main>
         {!session ? (
-          <VerificationForm onGenerate={handleGenerate} />
+          <VerificationForm
+            onGenerate={handleGenerate}
+            expirationMessage={expirationMessage}
+          />
         ) : (
           <QRCodeDisplay
 

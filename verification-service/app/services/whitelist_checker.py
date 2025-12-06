@@ -20,6 +20,8 @@ class WhitelistChecker:
             self._whitelist = []
 
     def is_trusted(self, url: str) -> bool:
+        # Reload for MVP dynamic updates
+        self._load_whitelist()
         try:
             parsed = urlparse(url)
             domain = parsed.netloc

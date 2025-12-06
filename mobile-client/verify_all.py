@@ -49,6 +49,7 @@ def main():
     test_scenario("https://podatki.gov.pl/zaloguj", "TRUSTED")
     test_scenario("https://evil.com/login", "UNSAFE")
     test_scenario("http://fake-gov.pl", "UNSAFE")
+    test_scenario("http://localhost:5174/", "TRUSTED")
     print("\nDone.")
 
 if __name__ == "__main__":
