@@ -8,10 +8,10 @@ function App() {
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  const handleGenerate = async (url) => {
+  const handleGenerate = async () => {
     setLoading(true);
     try {
-      const data = await initSession(url);
+      const data = await initSession();
       setSession(data);
     } catch (error) {
       alert("Error initializing session");

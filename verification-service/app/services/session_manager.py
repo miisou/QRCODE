@@ -8,12 +8,14 @@ class SessionManager:
         # Key: nonce, Value: Dict
         self._store: Dict[str, dict] = {}
 
-    def create_session(self, url: str) -> str:
+    def create_session(self, url: str, ip: str = None, ua: str = None) -> str:
         nonce = generate_nonce()
         self._store[nonce] = {
             "url": url,
             "created_at": time.time(),
-            "status": "PENDING"
+            "status": "PENDING",
+            "ip": ip,
+            "ua": ua
         }
         return nonce
 

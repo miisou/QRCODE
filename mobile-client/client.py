@@ -11,6 +11,8 @@ def verify_token(token):
             print("\n==============================")
             print(f"VERIFICATION RESULT: {data['verdict']}")
             print(f"URL: {data.get('checked_url')}")
+            print(f"Client IP: {data.get('client_ip')}")
+            print(f"User Agent: {data.get('user_agent')}")
             if data['verdict'] == "TRUSTED":
                 print("The website is SAFE.")
             else:

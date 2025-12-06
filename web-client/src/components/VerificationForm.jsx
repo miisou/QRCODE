@@ -2,17 +2,11 @@ import React, { useState } from 'react';
 import PropTypes from 'prop-types';
 
 const VerificationForm = ({ onGenerate }) => {
-    const [url, setUrl] = useState('');
     const [error, setError] = useState('');
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        if (!url) {
-            setError('Please enter a URL');
-            return;
-        }
+    const handleGenerate = async () => {
         try {
-            await onGenerate(url);
+            await onGenerate();
             setError('');
         } catch (err) {
             console.error(err);
@@ -23,19 +17,9 @@ const VerificationForm = ({ onGenerate }) => {
     return (
         <div className="card">
             <h2>Domain Verification</h2>
-            <form onSubmit={handleSubmit}>
-                <div className="input-group">
-                    <input
-                        type="url"
-                        placeholder="Enter URL (e.g., https://gov.pl)"
-                        value={url}
-                        onChange={(e) => setUrl(e.target.value)}
-                        required
-                    />
-                </div>
-                {error && <p className="error">{error}</p>}
-                <button type="submit">Generuj QR Kod</button>
-            </form>
+            <p className="hint">Verify this website using the Govt App.</p>
+            {error && <p className="error">{error}</p>}
+            <button onClick={handleGenerate}>Generate QR Code</button>
         </div>
     );
 };

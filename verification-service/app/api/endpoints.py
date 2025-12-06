@@ -1,4 +1,5 @@
 from fastapi import APIRouter, HTTPException, status
+import fastapi
 from app.api.models import InitSessionRequest, InitSessionResponse, VerifyTokenRequest, VerifyTokenResponse
 from app.services.session_manager import session_manager
 from app.services.whitelist_checker import whitelist_checker
@@ -9,10 +10,22 @@ from datetime import datetime
 router = APIRouter()
 
 @router.post("/session/init", response_model=InitSessionResponse, status_code=status.HTTP_201_CREATED)
-def init_session(request: InitSessionRequest):
-    nonce = session_manager.create_session(str(request.url))
-    # In a real app, qr_payload would be a custom scheme or a URL to the web/mobile app handler.
-    # Plan says: "myapp://verify?token=..."
+def init_session(request: fastapi.Request, body: InitSessionRequest):
+    # Extract URL from headers
+    client_url = request.headers.get("X-Client-Url")
+    if not client_url:
+        # Fallback logic or error? Detailed plan says "extract headers". 
+        # User request: "WC ne sprashivaet url a otpravlyaet svoi v http zagolovke".
+        # Let's enforce it or default to something? 
+        # Ideally, throw error if missing.
+        raise HTTPException(status_code=400, detail="Missing X-Client-Url header")
+    
+    # Extract Metadata
+    user_agent = request.headers.get("User-Agent")
+    client_ip = request.client.host if request.client else None
+
+    nonce = session_manager.create_session(client_url, ip=client_ip, ua=user_agent)
+    
     return InitSessionResponse(
         nonce=nonce,
         expires_in=settings.SESSION_TTL,
@@ -30,22 +43,6 @@ def verify_token(request: VerifyTokenRequest):
     # 2. Check TTL
     time_elapsed = time.time() - session["created_at"]
     if time_elapsed > settings.SESSION_TTL:
-        # Should we delete? The plan says "Update status EXPIRED" implicitly or explicitly delete.
-        # But if we return 404 next time, effectively same.
-        # Let's return EXPIRED verdict or HTTP error?
-        # Plan: "Удалить сессию, вернуть статус EXPIRED." (This implies a response with status or error)
-        # But VerifyTokenResponse has 'verdict'. Let's follow plan's step 3 logic strictly?
-        # "Если TTL > 30 -> Удалить сессию, вернуть статус EXPIRED."
-        # Note: Response model verdict enum is TRUSTED, UNSAFE, ERROR. NO EXPIRED in Enum!
-        # Let's return ERROR or create a new internal status?
-        # Re-reading plan:
-        # "3. Проверка 2 (TTL)... Удалить сессию, вернуть статус EXPIRED."
-        # "4. Проверка 3 (Повтор)... Ошибка 409 Conflict."
-        # "Result types: TRUSTED, UNSAFE, ERROR".
-        # Maybe EXPIRED is a generic 400 or special JSON?
-        # Let's map EXPIRED to ERROR or 400.
-        # Let's raise 410 Gone for expired or strict 400.
-        # Or return verdict="ERROR" and checked_url="Session Expired"
         raise HTTPException(status_code=410, detail="Session expired")
 
     # 3. Check Consumed
@@ -64,5 +61,7 @@ def verify_token(request: VerifyTokenRequest):
     return VerifyTokenResponse(
         verdict=verdict,
         checked_url=url,
-        timestamp=datetime.utcnow().isoformat() + "Z"
+        timestamp=datetime.utcnow().isoformat() + "Z",
+        client_ip=session.get("ip"),
+        user_agent=session.get("ua")
     )

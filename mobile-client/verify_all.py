@@ -7,7 +7,13 @@ def test_scenario(url, expected_verdict):
     
     # 1. Init Session
     try:
-        init_resp = requests.post(f"{API_URL}/session/init", json={"url": url})
+        # Update: Send URL in headers, add User-Agent
+        headers = {
+            "X-Client-Url": url,
+            "User-Agent": "MobileVerifier/1.0"
+        }
+        # Body is now empty/ignored for URL
+        init_resp = requests.post(f"{API_URL}/session/init", json={}, headers=headers)
         init_resp.raise_for_status()
         data = init_resp.json()
         nonce = data["nonce"]

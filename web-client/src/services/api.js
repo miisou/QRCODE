@@ -7,8 +7,16 @@ const api = axios.create({
     },
 });
 
-export const initSession = async (url) => {
-    const response = await api.post('/session/init', { url });
+export const initSession = async () => {
+    // Automatically grab current URL
+    const currentUrl = window.location.href;
+
+    // Add header to request config
+    const response = await api.post('/session/init', {}, {
+        headers: {
+            'X-Client-Url': currentUrl
+        }
+    });
     return response.data;
 };
 
