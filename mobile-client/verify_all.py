@@ -183,11 +183,19 @@ def test_websocket_verification_success(url):
     def on_message(ws, message):
         nonlocal ws_message_data
         try:
+            # Handle non-JSON messages (like "pong" from server)
+            if message == "pong":
+                print(f"  → WebSocket pong received")
+                return
+            
+            # Parse JSON messages
             ws_message_data = json.loads(message)
             print(f"  → WebSocket message received: {ws_message_data.get('type', 'unknown')}")
             ws_message_received.set()
+        except json.JSONDecodeError as e:
+            print(f"  → Error parsing WebSocket message as JSON: {e}, message: {message[:50]}")
         except Exception as e:
-            print(f"  → Error parsing WebSocket message: {e}")
+            print(f"  → Error handling WebSocket message: {e}")
     
     def on_error(ws, error):
         nonlocal ws_error
@@ -342,11 +350,19 @@ def test_websocket_no_notification_on_failure(url):
         def on_message(ws, message):
             nonlocal ws_message_data
             try:
+                # Handle non-JSON messages (like "pong" from server)
+                if message == "pong":
+                    print(f"  → WebSocket pong received")
+                    return
+                
+                # Parse JSON messages
                 ws_message_data = json.loads(message)
                 print(f"  → WebSocket message received: {ws_message_data.get('type', 'unknown')}")
                 ws_message_received.set()
+            except json.JSONDecodeError as e:
+                print(f"  → Error parsing WebSocket message as JSON: {e}, message: {message[:50]}")
             except Exception as e:
-                print(f"  → Error parsing WebSocket message: {e}")
+                print(f"  → Error handling WebSocket message: {e}")
         
         def on_error(ws, error):
             nonlocal ws_error
@@ -455,11 +471,19 @@ def test_websocket_no_proximity_no_notification(url):
     def on_message(ws, message):
         nonlocal ws_message_data
         try:
+            # Handle non-JSON messages (like "pong" from server)
+            if message == "pong":
+                print(f"  → WebSocket pong received")
+                return
+            
+            # Parse JSON messages
             ws_message_data = json.loads(message)
             print(f"  → WebSocket message received: {ws_message_data.get('type', 'unknown')}")
             ws_message_received.set()
+        except json.JSONDecodeError as e:
+            print(f"  → Error parsing WebSocket message as JSON: {e}, message: {message[:50]}")
         except Exception as e:
-            print(f"  → Error parsing WebSocket message: {e}")
+            print(f"  → Error handling WebSocket message: {e}")
     
     def on_error(ws, error):
         nonlocal ws_error

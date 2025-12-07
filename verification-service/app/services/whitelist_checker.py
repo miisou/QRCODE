@@ -173,4 +173,3 @@ class TrustAnchorRepository:
 
 # Global instance
 trust_anchor_repository = TrustAnchorRepository()
-
