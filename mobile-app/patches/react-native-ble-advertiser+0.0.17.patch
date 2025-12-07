@@ -1,0 +1,29 @@
+diff --git a/node_modules/react-native-ble-advertiser/android/build.gradle b/node_modules/react-native-ble-advertiser/android/build.gradle
+index 2526548..8c16dc1 100644
+--- a/node_modules/react-native-ble-advertiser/android/build.gradle
++++ b/node_modules/react-native-ble-advertiser/android/build.gradle
+@@ -1,18 +1,16 @@
+-apply plugin: 'com.android.library'
++apply plugin: "com.android.library"
+ 
+ android {
+-    compileSdkVersion 28
+-    buildToolsVersion "28.0.3"
++    compileSdkVersion 35
+ 
+     defaultConfig {
+-        minSdkVersion 21
+-        targetSdkVersion 28
++        minSdkVersion 24
++        targetSdkVersion 35
+         versionCode 1
+         versionName "1.0"
+     }
+ }
+ 
+ dependencies {
+-    implementation 'com.facebook.react:react-native:+'
++    implementation "com.facebook.react:react-native:+"
+ }
+\ No newline at end of file
+-
