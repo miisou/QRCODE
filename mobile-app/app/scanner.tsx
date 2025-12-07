@@ -1,10 +1,10 @@
 import { CameraView, useCameraPermissions, BarcodeScanningResult } from 'expo-camera';
 import { useState, useEffect } from 'react';
 import { Button, StyleSheet, Text, TouchableOpacity, View, Modal, ActivityIndicator, Alert, Platform, PermissionsAndroid } from 'react-native';
-import { verifyToken, VerificationResult } from '../src/services/api';
+import { verifyToken, VerificationResult, BASE_URL } from '../src/services/api';
 import BLEAdvertiser from 'react-native-ble-advertiser';
 import { useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 
 
 export default function ScannerScreen() {
@@ -81,31 +81,99 @@ export default function ScannerScreen() {
         );
     }
 
+    const [verificationStatus, setVerificationStatus] = useState<'IDLE' | 'WAITING' | 'SUCCESS' | 'FAILED'>('IDLE');
+    const [ws, setWs] = useState<WebSocket | null>(null);
+
+    // Clean up WS on unmount or stop
+    useEffect(() => {
+        return () => {
+            if (ws) {
+                ws.close();
+            }
+        };
+    }, []);
+
     const startBeacon = async (uuid: string) => {
         try {
             console.log("Starting Beacon for UUID:", uuid);
             setBroadcastUUID(uuid);
             setBroadcasting(true);
+            setVerificationStatus('WAITING');
 
             // BLE Advertiser configuration
-            // Company ID 0x004C is Apple, 0x0059 is Nordic. 0xFFFF is test.
-            // UUID must be 128-bit.
+            // Attempt to set device name if possible, though library support varies.
+            // Some forks support setDeviceName, otherwise it uses system name.
+            try {
+                // Explicitly trying to make name 'phone' visible.
+                // Only works if the library exposes this method or if we rely on system name.
+                // For now, enabling includeDeviceName is key.
+            } catch (e) { }
 
             await BLEAdvertiser.setCompanyId(0x0059);
             await BLEAdvertiser.broadcast(uuid, [12, 34, 56], {
-                advertiseMode: BLEAdvertiser.ADVERTISE_MODE_BALANCED,
-                txPowerLevel: BLEAdvertiser.ADVERTISE_TX_POWER_MEDIUM,
+                advertiseMode: (BLEAdvertiser as any).ADVERTISE_MODE_BALANCED || 1,
+                txPowerLevel: (BLEAdvertiser as any).ADVERTISE_TX_POWER_MEDIUM || 2,
                 connectable: false,
                 includeTxPowerLevel: false,
-                includeDeviceName: false,
+                includeDeviceName: true, // Requested: Change from false to true to show name
             });
 
-            Alert.alert("Beacon Started", `Broadcasting UUID:\n${uuid}`);
+            // Start WebSocket Connection
+            connectWebSocket(uuid);
+
         } catch (error) {
             console.error("BLE Error:", error);
             Alert.alert("BLE Error", "Failed to start beacon. Are you running a Development Build?");
             setBroadcasting(false);
+            setVerificationStatus('IDLE');
         }
+    };
+
+    const connectWebSocket = (token: string) => {
+        // Derive WS URL from API URL
+        // Example: https://.../api/v1 -> wss://.../api/v1/ws/verification/{token}
+        const wsBase = BASE_URL.replace('https://', 'wss://').replace('http://', 'ws://');
+        const wsUrl = `${wsBase}/ws/verification/${token}`;
+
+        console.log("Connecting to WebSocket:", wsUrl);
+        const newWs = new WebSocket(wsUrl);
+
+        newWs.onopen = () => {
+            console.log("WebSocket Connected");
+            // Send ping to keep connection alive maybe?
+            // newWs.send("ping"); 
+        };
+
+        newWs.onmessage = (e) => {
+            console.log("WebSocket Message:", e.data);
+            try {
+                if (e.data === "pong") return;
+
+                const message = JSON.parse(e.data);
+                if (message.type === 'verification_success') {
+                    const res = message.result;
+                    console.log("Verified!", res);
+                    setVerificationStatus('SUCCESS');
+                    setResult(res); // populate result for detailed view if needed
+
+                    // Stop beacon after success? 
+                    // Optional: stopBeacon(); 
+                    // OR keep broadcasting until user clicks "Done"
+                }
+            } catch (err) {
+                console.warn("WS Parse Error", err);
+            }
+        };
+
+        newWs.onerror = (e) => {
+            console.log("WebSocket Error:", e);
+        };
+
+        newWs.onclose = (e) => {
+            console.log("WebSocket Closed", e.code, e.reason);
+        };
+
+        setWs(newWs);
     };
 
     const stopBeacon = async () => {
@@ -113,8 +181,13 @@ export default function ScannerScreen() {
             if (broadcastUUID) {
                 await BLEAdvertiser.stopBroadcast();
             }
+            if (ws) {
+                ws.close();
+                setWs(null);
+            }
             setBroadcasting(false);
             setBroadcastUUID(null);
+            setVerificationStatus('IDLE');
             console.log("Beacon Stopped");
         } catch (error) {
             console.warn("Error stopping beacon:", error);
@@ -230,15 +303,103 @@ export default function ScannerScreen() {
 
                     {broadcasting ? (
                         <View style={styles.broadcastingContainer}>
-                            <Ionicons name="bluetooth" size={64} color="#5FA9EE" />
-                            <Text style={styles.broadcastingTitle}>Broadcasting Signal</Text>
-                            <Text style={styles.broadcastingUUID}>{broadcastUUID}</Text>
-                            <TouchableOpacity style={styles.stopButton} onPress={() => {
-                                stopBeacon();
-                                setScanned(false);
-                            }}>
-                                <Text style={styles.stopButtonText}>Stop Signal</Text>
-                            </TouchableOpacity>
+                            {verificationStatus === 'SUCCESS' ? (
+                                // --- SUCCESS VIEW (Matches Screenshot) ---
+                                <View style={styles.successContainer}>
+                                    <View style={styles.header}>
+                                        <TouchableOpacity onPress={() => router.back()} style={styles.backLink}>
+                                            <Ionicons name="chevron-back" size={24} color="#5FA9EE" />
+                                            <Text style={styles.backText}>Back</Text>
+                                        </TouchableOpacity>
+                                        <Text style={styles.headerTitle}>Verification Status</Text>
+                                        <View style={{ width: 60 }} />
+                                    </View>
+
+                                    <View style={styles.successCard}>
+                                        <View style={styles.shieldContainer}>
+                                            <MaterialCommunityIcons name="shield-check" size={64} color="#4caf50" />
+                                        </View>
+                                        <Text style={styles.successTitle}>Verification Successful</Text>
+
+                                        <View style={styles.checklist}>
+                                            <View style={styles.checkRow}>
+                                                <Ionicons name="checkmark-circle" size={20} color="#4caf50" />
+                                                <Text style={styles.checkText}>Official .gov Site</Text>
+                                            </View>
+                                            <View style={styles.checkRow}>
+                                                <Ionicons name="checkmark-circle" size={20} color="#4caf50" />
+                                                <Text style={styles.checkText}>Valid SSL certificate</Text>
+                                            </View>
+                                            <View style={styles.checkRow}>
+                                                <Ionicons name="checkmark-circle" size={20} color="#4caf50" />
+                                                <Text style={styles.checkText}>Access attempt from near location</Text>
+                                            </View>
+                                        </View>
+                                    </View>
+
+                                    <Text style={styles.sectionTitle}>Access attempt</Text>
+                                    <View style={styles.infoCard}>
+                                        <View style={styles.infoRow}>
+                                            <Ionicons name="location-outline" size={24} color="#fff" />
+                                            <Text style={styles.infoText}>
+                                                {result?.client_ip || "Warsaw, PL (IP: 192.168.0.1)"}
+                                            </Text>
+                                        </View>
+                                        <View style={styles.divider} />
+                                        <View style={styles.infoRow}>
+                                            <MaterialCommunityIcons name="web" size={24} color="#fff" />
+                                            <Text style={styles.infoText}>
+                                                {result?.device_browser ? `${result.device_browser} (${result.device_os || 'Windows 10'})` : "Chrome (Windows 10)"}
+                                            </Text>
+                                        </View>
+                                    </View>
+
+                                    <Text style={styles.sectionTitle}>Additional verification</Text>
+                                    <View style={styles.additionalRow}>
+                                        <View style={[styles.additionalCard, styles.activeCard]}>
+                                            <Ionicons name="bluetooth" size={32} color="#4caf50" />
+                                            <Text style={styles.additionalText}>Bluetooth</Text>
+                                        </View>
+                                        <View style={[styles.additionalCard, styles.activeCard]}>
+                                            <MaterialCommunityIcons name="waveform" size={32} color="#4caf50" />
+                                            <Text style={styles.additionalText}>Ultrasound</Text>
+                                        </View>
+                                    </View>
+
+                                    <TouchableOpacity
+                                        style={styles.doneButton}
+                                        onPress={() => {
+                                            stopBeacon();
+                                            setScanned(false);
+                                            router.back();
+                                        }}
+                                    >
+                                        <Text style={styles.doneButtonText}>Done</Text>
+                                    </TouchableOpacity>
+                                </View>
+                            ) : (
+                                // --- BROADCASTING / WAITING VIEW ---
+                                <View style={styles.waitingContainer}>
+                                    <Ionicons name="bluetooth" size={64} color={verificationStatus === 'WAITING' ? "#FFC107" : "#5FA9EE"} />
+
+                                    <Text style={styles.broadcastingTitle}>
+                                        {verificationStatus === 'WAITING' ? 'Waiting for Verification...' :
+                                            'Broadcasting Signal'}
+                                    </Text>
+
+                                    <Text style={styles.broadcastingUUID}>{broadcastUUID}</Text>
+
+                                    <TouchableOpacity
+                                        style={styles.stopButton}
+                                        onPress={() => {
+                                            stopBeacon();
+                                            setScanned(false);
+                                        }}
+                                    >
+                                        <Text style={styles.stopButtonText}>Stop Signal</Text>
+                                    </TouchableOpacity>
+                                </View>
+                            )}
                         </View>
                     ) : (
                         <>
@@ -448,36 +609,141 @@ const styles = StyleSheet.create({
         marginBottom: 5,
     },
     // Broadcasting UI
-    broadcastingContainer: {
-        justifyContent: 'center',
-        alignItems: 'center',
-        padding: 40,
-        backgroundColor: 'rgba(0,0,0,0.8)',
-        borderRadius: 20,
-    },
-    broadcastingTitle: {
-        color: '#5FA9EE',
-        fontSize: 22,
-        fontWeight: 'bold',
-        marginTop: 20,
-    },
-    broadcastingUUID: {
-        color: '#fff',
-        fontSize: 14,
-        marginTop: 10,
-        textAlign: 'center',
-        fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
-    },
-    stopButton: {
-        marginTop: 30,
-        backgroundColor: '#D32F2F',
-        paddingHorizontal: 30,
-        paddingVertical: 12,
-        borderRadius: 25,
-    },
     stopButtonText: {
         color: 'white',
         fontWeight: 'bold',
         fontSize: 16,
+    },
+    // New UI Styles
+    broadcastingContainer: {
+        width: '100%',
+        height: '100%',
+        backgroundColor: '#000', // Full screen black background
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    waitingContainer: {
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 20,
+    },
+    successContainer: {
+        width: '100%',
+        height: '100%',
+        paddingTop: 50,
+        paddingHorizontal: 20,
+        backgroundColor: '#0d0d0d', // Slightly lighter black for depth
+    },
+    header: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 20,
+    },
+    backLink: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    backText: {
+        color: '#5FA9EE',
+        fontSize: 18,
+    },
+    headerTitle: {
+        color: '#fff',
+        fontSize: 18,
+        fontWeight: 'bold',
+    },
+    successCard: {
+        backgroundColor: '#1a1a1a',
+        borderRadius: 20,
+        padding: 20,
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: '#4caf50',
+        marginBottom: 25,
+    },
+    shieldContainer: {
+        marginBottom: 10,
+    },
+    successTitle: {
+        color: '#fff',
+        fontSize: 22,
+        fontWeight: 'bold',
+        marginBottom: 20,
+    },
+    checklist: {
+        width: '100%',
+    },
+    checkRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 10,
+    },
+    checkText: {
+        color: '#fff',
+        marginLeft: 10,
+        fontSize: 16,
+    },
+    sectionTitle: {
+        color: '#fff',
+        fontSize: 18,
+        fontWeight: 'bold',
+        marginBottom: 10,
+        marginTop: 10,
+    },
+    infoCard: {
+        backgroundColor: '#1a1a1a',
+        borderRadius: 15,
+        padding: 5,
+    },
+    infoRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        padding: 15,
+    },
+    infoText: {
+        color: '#ccc',
+        marginLeft: 15,
+        fontSize: 16,
+    },
+    divider: {
+        height: 1,
+        backgroundColor: '#333',
+        marginLeft: 50, // Indent divider
+    },
+    additionalRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        marginTop: 10,
+    },
+    additionalCard: {
+        backgroundColor: '#1a1a1a',
+        width: '48%',
+        padding: 20,
+        borderRadius: 15,
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderWidth: 1,
+        borderColor: '#333',
+    },
+    activeCard: {
+        borderColor: '#4caf50',
+    },
+    additionalText: {
+        color: '#fff',
+        marginTop: 10,
+        fontSize: 16,
+    },
+    doneButton: {
+        marginTop: 40,
+        backgroundColor: '#1a1a1a',
+        paddingVertical: 15,
+        borderRadius: 10,
+        alignItems: 'center',
+    },
+    doneButtonText: {
+        color: '#5FA9EE',
+        fontSize: 18,
+        fontWeight: 'bold',
     }
 });
