@@ -30,3 +30,9 @@ class VerifyTokenResponse(BaseModel):
 class PollSessionResponse(BaseModel):
     status: Literal["PENDING", "CONSUMED", "EXPIRED"]
     result: VerifyTokenResponse | None = None
+
+class ProximityData(BaseModel):
+    ble_uuid: str
+    rssi: int | None = None
+    timestamp: str
+    supported: bool = True  # Whether BLE is supported by browser

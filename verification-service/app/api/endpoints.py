@@ -69,9 +69,10 @@ async def verify_token(body: VerifyTokenRequest, raw_request: Request, backgroun
     url = session["url"]
     web_ip = session.get("ip")
     mobile_ip = raw_request.client.host if raw_request.client else None
+    proximity_data = session.get("proximity")  # Get BLE proximity data
     
     from app.services.verification_engine import verification_engine
-    result = verification_engine.verify(url, web_ip=web_ip, mobile_ip=mobile_ip)
+    result = verification_engine.verify(url, web_ip=web_ip, mobile_ip=mobile_ip, proximity=proximity_data)
     
     # Update status MOVED TO END
     # session_manager.update_status(request.token, "CONSUMED")
@@ -130,3 +131,29 @@ def poll_session(nonce: str):
         status=status,
         result=result
     )
+
+from app.api.models import ProximityData
+
+@router.post("/session/proximity/{nonce}")
+async def confirm_proximity(nonce: str, proximity_data: ProximityData):
+    """
+    Confirm BLE proximity detection from browser.
+    Stores proximity confirmation in session for verification engine.
+    """
+    session = session_manager.get_session(nonce)
+    if not session or session.get("status") == "EXPIRED":
+        raise HTTPException(status_code=404, detail="Session not found or expired")
+    
+    # Store proximity data in session
+    # If BLE not supported, mark as not confirmed (but verification will pass)
+    # If BLE supported and close, mark as confirmed (verification passes)
+    # If BLE supported but not close/not found, don't call this endpoint (verification fails)
+    session_manager.update_proximity(nonce, {
+        "ble_uuid": proximity_data.ble_uuid,
+        "rssi": proximity_data.rssi,
+        "timestamp": proximity_data.timestamp,
+        "supported": proximity_data.supported,  # Store whether BLE is supported by browser
+        "confirmed": proximity_data.supported and (proximity_data.rssi is not None)  # Only confirmed if supported AND found
+    })
+    
+    return {"status": "proximity_confirmed"}

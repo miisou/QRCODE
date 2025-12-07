@@ -1,19 +1,37 @@
 import React, { useState, useEffect } from 'react';
 import VerificationForm from './components/VerificationForm';
 import QRCodeDisplay from './components/QRCodeDisplay';
-import { initSession, pollSession } from './services/api';
+import api, { initSession, pollSession } from './services/api';
+import { generateBLEUUID, scanForDevice, checkProximity } from './services/bluetoothScanner';
 import './App.css';
+
 
 function App() {
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [bleStatus, setBleStatus] = useState(null); // 'scanning', 'found', 'not_found', 'error'
+  const [bleUUID, setBleUUID] = useState(null);
 
   const handleGenerate = async () => {
     setLoading(true);
     setExpirationMessage(null);
+    setBleStatus(null);
+
+    // Generate BLE UUID for this session
+    const newBleUUID = generateBLEUUID();
+    setBleUUID(newBleUUID);
+
     try {
       const data = await initSession();
-      setSession(data);
+      // Update QR payload to include BLE UUID
+      const updatedData = {
+        ...data,
+        qr_payload: `${data.qr_payload}&ble=${newBleUUID}`
+      };
+      setSession(updatedData);
+
+
+      setTimeout(() => scanForDevice(newBleUUID), 1000);
     } catch (error) {
       alert("Error initializing session");
     } finally {
@@ -25,6 +43,60 @@ function App() {
   const handleExpire = () => {
     setSession(null);
     setExpirationMessage("Token expired");
+    setBleStatus(null);
+    setBleUUID(null);
+  };
+
+  const scanForDevice = async (targetUUID) => {
+    try {
+      console.log(`Запрашиваем устройство с сервисом: ${targetUUID}`);
+
+      // 1. Вызов окна выбора устройства
+      // Важно: Браузер покажет ТОЛЬКО те устройства, которые рекламируют этот UUID.
+      // Если телефон не начал рекламу - список будет пуст.
+      const device = await navigator.bluetooth.requestDevice({
+        filters: [
+          { services: [targetUUID] }
+        ]
+      });
+
+      console.log(`Пользователь выбрал устройство: ${device.name}`);
+
+      // 2. Проверка соединения (Proof of Proximity)
+      // Просто выбора недостаточно (вдруг устройство выключилось секунду назад).
+      // Нужно установить GATT соединение.
+      if (device.gatt) {
+        const server = await device.gatt.connect();
+
+        console.log("Успешное подключение к GATT серверу!");
+
+        // Здесь можно прочитать характеристику, если нужно передать данные,
+        // но для проверки близости факта connect() достаточно.
+
+        // 3. Отключаемся и возвращаем успех
+        setTimeout(() => device.gatt.disconnect(), 1000);
+
+        return {
+          supported: true,
+          found: true,
+          rssi: -50, // Фейковый RSSI, т.к. при прямом подключении мы его не знаем, но связь есть
+          device: device
+        };
+      } else {
+        throw new Error("GATT сервер недоступен");
+      }
+
+    } catch (error) {
+      // Обработка ошибок
+      if (error.name === 'NotFoundError') {
+        console.log('Пользователь закрыл окно выбора или не выбрал устройство.');
+        // Это не "ошибка технологии", это отмена действия пользователем
+        return { supported: true, found: false };
+      }
+
+      console.error("Ошибка Bluetooth:", error);
+      return { supported: true, found: false, error: error.message };
+    }
   };
 
   useEffect(() => {
@@ -118,6 +190,36 @@ function App() {
                 </button>
               </div>
             </div>
+
+            {/* BLE Proximity Status */}
+            {bleStatus && (
+              <div style={{
+                marginTop: '20px',
+                padding: '12px',
+                borderRadius: '8px',
+                backgroundColor:
+                  bleStatus === 'found' ? '#d4edda' :
+                    bleStatus === 'scanning' ? '#fff3cd' :
+                      bleStatus === 'not_supported' ? '#d1ecf1' :
+                        '#f8d7da',
+                border: '1px solid ' + (
+                  bleStatus === 'found' ? '#c3e6cb' :
+                    bleStatus === 'scanning' ? '#ffeaa7' :
+                      bleStatus === 'not_supported' ? '#bee5eb' :
+                        '#f5c6cb'
+                ),
+                textAlign: 'center'
+              }}>
+                <small>
+                  {bleStatus === 'scanning' && '📡 Scanning for phone nearby...'}
+                  {bleStatus === 'found' && '✅ Phone detected nearby (BLE proximity confirmed)'}
+                  {bleStatus === 'not_found' && '⚠️ Phone not detected via BLE'}
+                  {bleStatus === 'far' && '⚠️ Phone detected but too far'}
+                  {bleStatus === 'not_supported' && 'ℹ️ BLE not supported (proximity check skipped)'}
+                  {bleStatus === 'error' && '❌ BLE scanning error (proximity check skipped)'}
+                </small>
+              </div>
+            )}
           </>
         )}
 

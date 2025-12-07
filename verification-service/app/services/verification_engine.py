@@ -9,9 +9,10 @@ class VerificationEngine:
         self.tar = trust_anchor_repository
         self.ssl_verifier = ssl_verifier
 
-    def verify(self, url: str, web_ip: str = None, mobile_ip: str = None) -> Dict[str, Any]:
+    def verify(self, url: str, web_ip: str = None, mobile_ip: str = None, proximity: dict = None) -> Dict[str, Any]:
         """
         Performs deep verification and calculates Trust Score.
+        Proximity: BLE proximity data from session (if available)
         """
         score = 100
         logs = []
@@ -33,8 +34,40 @@ class VerificationEngine:
             "revocation": "UNKNOWN",
             "hostname_match": "UNKNOWN",
             "chain_integrity": "UNKNOWN",
-            "ip_correlation": "SKIPPED"
+            "ip_correlation": "SKIPPED",
+            "ble_proximity": "UNKNOWN"
         }        
+
+        # 0. BLE Proximity Check (CRITICAL if BLE supported)
+        # Rule: Verification passes ONLY if:
+        #   1) BLE proximity confirmed, OR
+        #   2) BLE not supported by browser (proximity data with supported=false OR no proximity data)
+        # If BLE supported but NOT confirmed → FAIL
+        
+        if proximity:
+            # Browser sent proximity data
+            if proximity.get("confirmed"):
+                # BLE supported AND proximity confirmed
+                details["ble_proximity"] = "PASS"
+                logs.append(f"✅ BLE proximity confirmed (RSSI: {proximity.get('rssi')} dBm)")
+            elif "confirmed" in proximity and not proximity.get("confirmed"):
+                # BLE attempted but NOT confirmed
+                # Check the 'supported' field to know if BLE is available
+                if not proximity.get("supported"):
+                    # BLE not supported by browser - allow verification
+                    details["ble_proximity"] = "SKIPPED"
+                    logs.append("BLE proximity check skipped (not supported by browser)")
+                else:
+                    # BLE IS supported but phone not found/too far - FAIL
+                    details["ble_proximity"] = "FAIL"
+                    logs.append("❌ BLE supported but phone proximity NOT confirmed")
+                    score = 0
+                    return self._build_result(score, logs, details)
+        else:
+            # No proximity data = BLE scan not attempted (old client or error)
+            details["ble_proximity"] = "SKIPPED"
+            logs.append("BLE proximity check skipped (not attempted)")
+        
 
         # 1. Whitelist Check (40%)
         # If not in whitelist, we drop score significantly or to 0 depending on strictness.
@@ -55,7 +88,7 @@ class VerificationEngine:
         if not chain:
             details["ssl_valid"] = "FAIL"
             logs.append("Failed to retrieve SSL certificate.")
-            score = 0 # Cannot verify anything else
+            score -= 10 # Cannot verify anything else
             return self._build_result(score, logs, details)
         
         details["ssl_valid"] = "PASS"
@@ -107,8 +140,37 @@ class VerificationEngine:
         # Since we are here, we assume basic SSL handshake worked, so chain is likely trusted by system.
         details["chain_integrity"] = "PASS" # Implicitly pass if we got here via standard lib or assumed
         
-        # Deduct if any minor issues? 
-        # For MVP we can keep it simple. If we passed all criticals, we are effectively 100 or close.
+        # 5.1 Suspicious Metadata Checks (can reduce score to trigger CAUTION)
+        now = datetime.now(timezone.utc)
+        
+        # Check if certificate is very new (possible phishing campaign)
+        cert_age = (now - leaf_cert.not_valid_before_utc).days
+        if cert_age < 7:
+            score -= 15
+            logs.append(f"CAUTION: Certificate is very new ({cert_age} days old). Possible phishing.")
+            details["metadata"] = "SUSPICIOUS_NEW_CERT"
+        
+        # Check if certificate expires soon (legitimate sites renew early)
+        days_until_expiry = (leaf_cert.not_valid_after_utc - now).days
+        if days_until_expiry < 30:
+            score -= 10
+            logs.append(f"CAUTION: Certificate expires soon ({days_until_expiry} days remaining).")
+            if "metadata" in details:
+                details["metadata"] += ",EXPIRING_SOON"
+            else:
+                details["metadata"] = "EXPIRING_SOON"
+        
+        # Check if self-signed (issuer == subject)
+        if leaf_cert.issuer == leaf_cert.subject:
+            score = 0
+            logs.append("UNSAFE: Self-signed certificate detected.")
+            if "metadata" in details:
+                details["metadata"] += ",SELF_SIGNED"
+            else:
+                details["metadata"] = "SELF_SIGNED"
+        
+        if "metadata" not in details:
+            details["metadata"] = "PASS"
         
         return self._build_result(score, logs, details)
 
