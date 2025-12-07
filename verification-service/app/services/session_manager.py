@@ -55,12 +55,12 @@ class SessionManager:
             # setex resets TTL. Consumed sessions shouldn't live forever but user needs to see result.
             self.redis.setex(key, settings.SESSION_TTL, json.dumps(session))
     
-    def update_proximity(self, nonce: str, proximity_data: dict) -> None:
+    def update_proximity(self, nonce: str, bluetooth_data: dict) -> None:
         key = f"session:{nonce}"
         data = self.redis.get(key)
         if data:
             session = json.loads(data)
-            session["proximity"] = proximity_data
+            session["proximity"] = bluetooth_data
             self.redis.setex(key, settings.SESSION_TTL, json.dumps(session))
 
 session_manager = SessionManager()

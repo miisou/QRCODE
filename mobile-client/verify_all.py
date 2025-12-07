@@ -75,18 +75,18 @@ def test_ble_scenario(url, expected_verdict, ble_proximity_mode):
             
             if ble_proximity_mode == "confirmed":
                 # Simulate successful BLE proximity detection
-                proximity_payload["rssi"] = -45  # Strong signal
+                proximity_payload["found"] = True
                 proximity_payload["supported"] = True
-                print(f"  → Sending BLE proximity: CONFIRMED (RSSI: -45 dBm)")
+                print(f"  → Sending BLE proximity: CONFIRMED")
             elif ble_proximity_mode == "not_supported":
                 # Simulate BLE not supported by browser
-                proximity_payload["rssi"] = None
+                proximity_payload["found"] = True
                 proximity_payload["supported"] = False
                 print(f"  → Sending BLE proximity: NOT SUPPORTED")
             elif ble_proximity_mode == "not_confirmed":
                 # Simulate BLE supported but phone not found
-                # Web client NOW sends proximity data with supported=true, rssi=null
-                proximity_payload["rssi"] = None
+                # Web client NOW sends proximity data with supported=true
+                proximity_payload["found"] = False
                 proximity_payload["supported"] = True  # BLE IS supported
                 print(f"  → Sending BLE proximity: SUPPORTED but phone NOT FOUND")
             
@@ -96,7 +96,6 @@ def test_ble_scenario(url, expected_verdict, ble_proximity_mode):
                     json=proximity_payload
                 )
                 prox_resp.raise_for_status()
-                print(f"  → Proximity data sent")
                 
         except Exception as e:
             print(f"  → Failed to send proximity: {e}")
@@ -144,16 +143,9 @@ def main():
     test_scenario("https://revoked.badssl.com/", "UNSAFE")
     
     print("\n=== BLE PROXIMITY TESTS ===")
-    print("Test 1: BLE Supported + Proximity Confirmed (Should PASS)")
-    test_ble_scenario("https://gov.pl", "TRUSTED", "confirmed")
-    
-    print("\nTest 2: BLE NOT Supported (Should PASS)")
-    test_ble_scenario("https://gov.pl", "TRUSTED", "not_supported")
-    
-    print("\nTest 3: BLE Supported but Phone NOT Found (Should FAIL)")
+    test_ble_scenario("https://gov.pl", "TRUSTED", "confirmed")    
+    test_ble_scenario("https://gov.pl", "TRUSTED", "not_supported")    
     test_ble_scenario("https://gov.pl", "UNSAFE", "not_confirmed")
-    
-    print("\nTest 4: BLE Confirmed but SSL Invalid (Should still FAIL)")
     test_ble_scenario("https://expired.badssl.com/", "UNSAFE", "confirmed")
     
     print("\n=== ALL TESTS COMPLETE ===")

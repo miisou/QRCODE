@@ -69,10 +69,10 @@ async def verify_token(body: VerifyTokenRequest, raw_request: Request, backgroun
     url = session["url"]
     web_ip = session.get("ip")
     mobile_ip = raw_request.client.host if raw_request.client else None
-    proximity_data = session.get("proximity")  # Get BLE proximity data
+    bluetooth_data = session.get("proximity")  # Get BLE proximity data
     
     from app.services.verification_engine import verification_engine
-    result = verification_engine.verify(url, web_ip=web_ip, mobile_ip=mobile_ip, proximity=proximity_data)
+    result = verification_engine.verify(url, web_ip=web_ip, mobile_ip=mobile_ip, proximity=bluetooth_data)
     
     # Update status MOVED TO END
     # session_manager.update_status(request.token, "CONSUMED")
@@ -132,10 +132,10 @@ def poll_session(nonce: str):
         result=result
     )
 
-from app.api.models import ProximityData
+from app.api.models import BluetoothData
 
 @router.post("/session/proximity/{nonce}")
-async def confirm_proximity(nonce: str, proximity_data: ProximityData):
+async def confirm_proximity(nonce: str, bluetooth_data: BluetoothData):
     """
     Confirm BLE proximity detection from browser.
     Stores proximity confirmation in session for verification engine.
@@ -149,11 +149,11 @@ async def confirm_proximity(nonce: str, proximity_data: ProximityData):
     # If BLE supported and close, mark as confirmed (verification passes)
     # If BLE supported but not close/not found, don't call this endpoint (verification fails)
     session_manager.update_proximity(nonce, {
-        "ble_uuid": proximity_data.ble_uuid,
-        "rssi": proximity_data.rssi,
-        "timestamp": proximity_data.timestamp,
-        "supported": proximity_data.supported,  # Store whether BLE is supported by browser
-        "confirmed": proximity_data.supported and (proximity_data.rssi is not None)  # Only confirmed if supported AND found
+        "ble_uuid": bluetooth_data.ble_uuid,
+        "found": bluetooth_data.found,
+        "timestamp": bluetooth_data.timestamp,
+        "supported": bluetooth_data.supported,  # Store whether BLE is supported by browser
+        "confirmed": bluetooth_data.supported and bluetooth_data.found  # Only confirmed if supported AND found
     })
     
     return {"status": "proximity_confirmed"}

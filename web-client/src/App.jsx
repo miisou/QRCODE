@@ -1,44 +1,68 @@
 import React, { useState, useEffect } from 'react';
 import VerificationForm from './components/VerificationForm';
 import QRCodeDisplay from './components/QRCodeDisplay';
-import api, { initSession, pollSession } from './services/api';
-import { generateBLEUUID, scanForDevice, checkProximity } from './services/bluetoothScanner';
+import { initSession, pollSession } from './services/api';
+// Импортируем сканер и генератор
+import { requestDeviceWithUUID, generateBLEUUID } from './services/bluetoothScanner';
 import './App.css';
-
 
 function App() {
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [bleStatus, setBleStatus] = useState(null); // 'scanning', 'found', 'not_found', 'error'
-  const [bleUUID, setBleUUID] = useState(null);
+
+  // Состояния для BLE
+  const [bleStatus, setBleStatus] = useState(null);
+  const [bleUUID, setBleUUID] = useState(null); // Храним UUID текущей сессии
+  const [deviceName, setDeviceName] = useState(null);
+
+  const [expirationMessage, setExpirationMessage] = useState(null);
 
   const handleGenerate = async () => {
     setLoading(true);
     setExpirationMessage(null);
     setBleStatus(null);
+    setDeviceName(null);
 
-    // Generate BLE UUID for this session
+    // 1. Генерируем UUID для этой сессии
     const newBleUUID = generateBLEUUID();
     setBleUUID(newBleUUID);
 
     try {
       const data = await initSession();
-      // Update QR payload to include BLE UUID
+
+      // 2. Добавляем UUID в QR payload, чтобы телефон мог его прочитать и начать вещать
       const updatedData = {
         ...data,
-        qr_payload: `${data.qr_payload}&ble=${newBleUUID}`
+        qr_payload: `${data.qr_payload}&uuid=${newBleUUID}`
       };
+
       setSession(updatedData);
-
-
-      setTimeout(() => scanForDevice(newBleUUID), 1000);
     } catch (error) {
       alert("Error initializing session");
     } finally {
       setLoading(false);
     }
   };
-  const [expirationMessage, setExpirationMessage] = useState(null);
+
+  // Ручной запуск сканирования с фильтром по UUID
+  const handleManualScan = async () => {
+    if (!bleUUID) return; // Если UUID нет, сканировать нечего
+
+    setBleStatus('scanning');
+
+    // Передаем конкретный UUID в фильтр
+    const result = await requestDeviceWithUUID(bleUUID);
+
+    if (result.found) {
+      setBleStatus('found');
+      setDeviceName(result.name);
+    } else if (result.error === 'Bluetooth not supported in this browser') {
+      setBleStatus('not_supported');
+    } else {
+      // Скорее всего пользователь не нашел устройство в списке и закрыл окно
+      setBleStatus('not_found');
+    }
+  };
 
   const handleExpire = () => {
     setSession(null);
@@ -47,58 +71,7 @@ function App() {
     setBleUUID(null);
   };
 
-  const scanForDevice = async (targetUUID) => {
-    try {
-      console.log(`Запрашиваем устройство с сервисом: ${targetUUID}`);
-
-      // 1. Вызов окна выбора устройства
-      // Важно: Браузер покажет ТОЛЬКО те устройства, которые рекламируют этот UUID.
-      // Если телефон не начал рекламу - список будет пуст.
-      const device = await navigator.bluetooth.requestDevice({
-        filters: [
-          { services: [targetUUID] }
-        ]
-      });
-
-      console.log(`Пользователь выбрал устройство: ${device.name}`);
-
-      // 2. Проверка соединения (Proof of Proximity)
-      // Просто выбора недостаточно (вдруг устройство выключилось секунду назад).
-      // Нужно установить GATT соединение.
-      if (device.gatt) {
-        const server = await device.gatt.connect();
-
-        console.log("Успешное подключение к GATT серверу!");
-
-        // Здесь можно прочитать характеристику, если нужно передать данные,
-        // но для проверки близости факта connect() достаточно.
-
-        // 3. Отключаемся и возвращаем успех
-        setTimeout(() => device.gatt.disconnect(), 1000);
-
-        return {
-          supported: true,
-          found: true,
-          rssi: -50, // Фейковый RSSI, т.к. при прямом подключении мы его не знаем, но связь есть
-          device: device
-        };
-      } else {
-        throw new Error("GATT сервер недоступен");
-      }
-
-    } catch (error) {
-      // Обработка ошибок
-      if (error.name === 'NotFoundError') {
-        console.log('Пользователь закрыл окно выбора или не выбрал устройство.');
-        // Это не "ошибка технологии", это отмена действия пользователем
-        return { supported: true, found: false };
-      }
-
-      console.error("Ошибка Bluetooth:", error);
-      return { supported: true, found: false, error: error.message };
-    }
-  };
-
+  // (useEffect для поллинга остался без изменений...)
   useEffect(() => {
     let interval;
     if (session && !session.result && !expirationMessage) {
@@ -122,104 +95,79 @@ function App() {
 
   return (
     <div className="container">
-      <header>
-        <h1>GovVerify</h1>
-      </header>
+      <header><h1>GovVerify</h1></header>
       <main>
         {!session ? (
           <VerificationForm
             onGenerate={handleGenerate}
             expirationMessage={expirationMessage}
+            isLoading={loading}
           />
         ) : (
           <>
             <QRCodeDisplay
-
-              // Actually Mobile client manually enters token or scans?
-              // Plan: "WC renders QR containing xyz" (nonce) or full payload.
-              // Plan Step 1: "qr_payload: myapp://verify?token=a1b2..."
-              // Plan Step 2: "Please enter token manually... user enters xyz".
-              // If scanning, full payload is better. If manual entry, just nonce.
-              // Let's display Nonce text AND QR of payload.
-              // Pass session.qr_payload to QR, session.nonce to display text.
               value={session.qr_payload}
               initialTtl={session.expires_in}
               onExpire={handleExpire}
             />
-            <div style={{
-              marginTop: '20px',
-              padding: '15px',
-              backgroundColor: '#f5f5f5',
-              borderRadius: '8px',
-              textAlign: 'center'
-            }}>
-              <p style={{ margin: '0 0 10px 0', fontWeight: 'bold' }}>Token (Nonce):</p>
-              <div style={{
-                display: 'flex',
-                gap: '10px',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}>
-                <code style={{
-                  padding: '8px 12px',
-                  backgroundColor: '#fff',
-                  border: '1px solid #ddd',
-                  borderRadius: '4px',
-                  fontSize: '14px',
-                  fontFamily: 'monospace',
-                  wordBreak: 'break-all'
-                }}>
-                  {session.nonce}
-                </code>
-                <button
-                  onClick={() => {
-                    navigator.clipboard.writeText(session.nonce);
-                    alert('Token copied to clipboard!');
-                  }}
-                  style={{
-                    padding: '8px 16px',
-                    backgroundColor: '#007bff',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '4px',
-                    cursor: 'pointer',
-                    fontSize: '14px'
-                  }}
-                >
-                  Copy
-                </button>
-              </div>
+
+            <div style={{ textAlign: 'center', marginTop: '10px', color: '#666' }}>
+              <small>Session UUID: {bleUUID}</small>
             </div>
 
-            {/* BLE Proximity Status */}
-            {bleStatus && (
-              <div style={{
-                marginTop: '20px',
-                padding: '12px',
-                borderRadius: '8px',
-                backgroundColor:
-                  bleStatus === 'found' ? '#d4edda' :
-                    bleStatus === 'scanning' ? '#fff3cd' :
-                      bleStatus === 'not_supported' ? '#d1ecf1' :
-                        '#f8d7da',
-                border: '1px solid ' + (
-                  bleStatus === 'found' ? '#c3e6cb' :
-                    bleStatus === 'scanning' ? '#ffeaa7' :
-                      bleStatus === 'not_supported' ? '#bee5eb' :
-                        '#f5c6cb'
-                ),
-                textAlign: 'center'
-              }}>
-                <small>
-                  {bleStatus === 'scanning' && '📡 Scanning for phone nearby...'}
-                  {bleStatus === 'found' && '✅ Phone detected nearby (BLE proximity confirmed)'}
-                  {bleStatus === 'not_found' && '⚠️ Phone not detected via BLE'}
-                  {bleStatus === 'far' && '⚠️ Phone detected but too far'}
-                  {bleStatus === 'not_supported' && 'ℹ️ BLE not supported (proximity check skipped)'}
-                  {bleStatus === 'error' && '❌ BLE scanning error (proximity check skipped)'}
-                </small>
-              </div>
-            )}
+            {/* Блок с токеном (как раньше) ... */}
+            <div style={{ marginTop: '20px', padding: '15px', backgroundColor: '#f5f5f5', borderRadius: '8px', textAlign: 'center' }}>
+              <p style={{ margin: '0 0 10px 0', fontWeight: 'bold' }}>Token (Nonce):</p>
+              <code style={{ padding: '8px 12px', backgroundColor: '#fff', border: '1px solid #ddd', borderRadius: '4px', fontFamily: 'monospace' }}>
+                {session.nonce}
+              </code>
+            </div>
+
+
+
+            <div style={{ marginTop: '20px', textAlign: 'center' }}>
+
+              {!bleStatus || bleStatus === 'not_found' || bleStatus === 'canceled' ? (
+
+                <button
+                  onClick={handleManualScan}
+                  style={{
+                    padding: '15px 30px',
+                    backgroundColor: '#28a745',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '8px',
+                    fontSize: '18px',
+                    fontWeight: 'bold',
+                    cursor: 'pointer',
+                    boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+                  }}
+                >
+                  📡 Find device
+                </button>
+
+              ) : null}
+              {/* Отображение статусов */}
+              {bleStatus && (
+                <div style={{
+                  marginTop: '15px',
+                  padding: '12px',
+                  borderRadius: '8px',
+                  backgroundColor:
+                    bleStatus === 'found' ? '#d4edda' :
+                      bleStatus === 'scanning' ? '#fff3cd' :
+                        bleStatus === 'not_found' ? '#f8d7da' :
+                          '#e2e3e5',
+                  border: '1px solid #ddd',
+                  textAlign: 'center'
+                }}>
+                  {bleStatus === 'scanning' && '📡 Opening scanner for UUID... Check your phone!'}
+                  {bleStatus === 'found' && `✅ Matched Device Found: ${deviceName}`}
+                  {bleStatus === 'not_found' && '⚠️ Device with this UUID not found (or canceled)'}
+                  {bleStatus === 'not_supported' && 'ℹ️ Bluetooth API not supported'}
+                </div>
+              )}
+            </div>
           </>
         )}
 
