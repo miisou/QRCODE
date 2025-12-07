@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Button, StyleSheet, Text, TouchableOpacity, View, Modal, ActivityIndicator } from 'react-native';
 import { Svg, Defs, Rect, Mask } from 'react-native-svg';
 import { verifyToken, VerificationResult } from '../src/services/api';
+import BlePeripheral from 'react-native-ble-peripheral';
 
 export default function App() {
     console.log("App Rendering...");
@@ -34,6 +35,34 @@ export default function App() {
         );
     }
 
+    async function startBluetoothEmission(targetUuid: string) {
+        console.log(`Initializing BLE Advertiser for UUID: ${targetUuid}`);
+
+        try {
+            // 1. define the service and characteristic (Characteristics are needed to add a service)
+            // We use a dummy characteristic just to make the service valid for advertising.
+            const chUuid = '00002a00-0000-1000-8000-00805f9b34fb'; // Standard "Device Name" characteristic or random
+
+            // Add the service to the GATT server (Required before advertising)
+            await BlePeripheral.addService(targetUuid, true); // true = primary service
+
+            // Add a dummy characteristic so the service isn't empty (optional but recommended for stability)
+            await BlePeripheral.addCharacteristicToService(targetUuid, chUuid, 16 | 1, 1);
+
+            // 2. Start Advertising
+            // The browser looks for the 'serviceUuids' in the advertisement packet.
+            await BlePeripheral.startAdvertising({
+                name: "MyAndroidApp", // The name the browser will see
+                serviceUuids: [targetUuid] // THIS IS CRITICAL: The UUID must be here
+            });
+
+            console.log("BLE Advertising started successfully.");
+
+        } catch (error) {
+            console.error("Failed to start advertising:", error);
+        }
+    }
+
     const handleBarCodeScanned = async ({ data }: BarcodeScanningResult) => {
         if (scanned || loading) return;
 
@@ -42,32 +71,38 @@ export default function App() {
         setModalVisible(true);
 
         console.log("Raw QR Data:", data);
+        // Parse Token and UUID from URL (e.g., myapp://verify?token=XYZ&uuid=ABC)
+        let token = "";
+        let uuid = null;
 
-        // Parse Token from URL (e.g., myapp://verify?token=XYZ -> XYZ)
-        let token = data;
-        try {
-            if (data.includes("token=")) {
-                const urlObj = new URL(data);
-                const extracted = urlObj.searchParams.get("token");
-                if (extracted) token = extracted;
-            } else if (data.includes("?")) {
-                // Fallback if URL parsing fails on non-standard schemes
-                const parts = data.split("token=");
-                if (parts.length > 1) token = parts[1].split("&")[0];
-            }
-        } catch (e) {
-            console.log("Error parsing token URL:", e);
-            // Fallback for simple split
-            if (data.includes("token=")) {
-                const parts = data.split("token=");
-                if (parts.length > 1) token = parts[1].split("&")[0];
-            }
+        if (data.includes("?") && (data.includes("token=") || data.includes("uuid="))) {
+            const urlObj = new URL(data);
+
+            const extractedToken = urlObj.searchParams.get("token");
+            if (extractedToken) token = extractedToken;
+
+            const extractedUuid = urlObj.searchParams.get("uuid");
+            if (extractedUuid) uuid = extractedUuid;
         }
 
         console.log("Extracted Token:", token);
+        console.log("Extracted UUID:", uuid);
 
-        // Call API
+        // 1. Verify Token API Call
         const verification = await verifyToken(token);
+
+        // 2. Emit Bluetooth if UUID is present
+        if (uuid) {
+            console.log(`Starting Bluetooth emission for UUID: ${uuid}`);
+            try {
+                // TODO: Replace with your specific Bluetooth library function 
+                // e.g., bleManager.startAdvertising(uuid) or similar
+                await startBluetoothEmission(uuid);
+            } catch (err) {
+                console.error("Failed to start Bluetooth emission:", err);
+            }
+        }
+
 
         setResult(verification);
         setLoading(false);

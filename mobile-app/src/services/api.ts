@@ -8,7 +8,7 @@ const BASE_URL = 'https://bebra-verifier.onrender.com/api/v1';
 // const BASE_URL = 'http://localhost:8000/api/v1';
 
 export interface VerificationResult {
-    verdict: 'TRUSTED' | 'UNSAFE' | 'UNKNOWN';
+    verdict: 'TRUSTED' | 'CAUTION' | 'UNSAFE';
     checked_url?: string;
     device_brand?: string;
     device_os?: string;
