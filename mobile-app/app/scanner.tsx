@@ -5,7 +5,7 @@ import { verifyToken, VerificationResult } from '../src/services/api';
 import BLEAdvertiser from 'react-native-ble-advertiser';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import BlePeripheral from 'react-native-ble-peripheral';
+
 
 export default function ScannerScreen() {
     const router = useRouter();
@@ -121,100 +121,60 @@ export default function ScannerScreen() {
         }
     };
 
-    async function startBluetoothEmission(targetUuid: string) {
-        console.log(`Initializing BLE Advertiser for UUID: ${targetUuid}`);
 
-        try {
-            // 1. define the service and characteristic (Characteristics are needed to add a service)
-            // We use a dummy characteristic just to make the service valid for advertising.
-            const chUuid = '00002a00-0000-1000-8000-00805f9b34fb'; // Standard "Device Name" characteristic or random
-
-            // Add the service to the GATT server (Required before advertising)
-            await BlePeripheral.addService(targetUuid, true); // true = primary service
-
-            // Add a dummy characteristic so the service isn't empty (optional but recommended for stability)
-            await BlePeripheral.addCharacteristicToService(targetUuid, chUuid, 16 | 1, 1);
-
-            // 2. Start Advertising
-            // The browser looks for the 'serviceUuids' in the advertisement packet.
-            await BlePeripheral.startAdvertising({
-                name: "MyAndroidApp", // The name the browser will see
-                serviceUuids: [targetUuid] // THIS IS CRITICAL: The UUID must be here
-            });
-
-            console.log("BLE Advertising started successfully.");
-
-        } catch (error) {
-            console.error("Failed to start advertising:", error);
-        }
-    }
 
     const handleBarCodeScanned = async ({ data }: BarcodeScanningResult) => {
         if (scanned || loading) return;
 
         setScanned(true);
         setLoading(true);
-        // setModalVisible(true); // Don't show modal immediately for BLE check?
-
         console.log("Raw QR Data:", data);
-        // Parse Token and UUID from URL (e.g., myapp://verify?token=XYZ&uuid=ABC)
-        let token = "";
-        let uuid = null;
 
-        // 1. Extract Token/UUID
         let token = data;
-        let isUUID = false;
-
-        // Simple regex to check if string is roughly a UUID
+        let targetUuid: string | null = null;
         const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-        // Check if data is a direct UUID
+        // 1. Check if data is a direct UUID
         if (uuidRegex.test(data)) {
             token = data;
-            isUUID = true;
-        } else {
-            // Extract from URL
+            targetUuid = data;
+        }
+        // 2. Parse details from URL if possible
+        else {
             try {
-                if (data.includes("token=")) {
-                    const urlObj = new URL(data);
-                    const extracted = urlObj.searchParams.get("token");
-                    if (extracted) token = extracted;
-                } else if (data.includes("?")) {
-                    const parts = data.split("token=");
-                    if (parts.length > 1) token = parts[1].split("&")[0];
+                // Handle raw strings that might contain params but aren't full URLs
+                const urlString = (data.includes("://") || data.startsWith("http")) ? data : `https://example.com?${data.includes("?") ? data.split("?")[1] : data}`;
+
+                // If it looks like a URL or has params
+                if (data.includes("?") || data.includes("=")) {
+                    const urlObj = new URL(urlString);
+
+                    const extractedToken = urlObj.searchParams.get("token");
+                    if (extractedToken) token = extractedToken;
+
+                    const extractedUuid = urlObj.searchParams.get("uuid");
+                    if (extractedUuid) targetUuid = extractedUuid;
                 }
             } catch (e) {
-                console.log("Error parsing token URL:", e);
+                console.log("URL Parse Error", e);
+                // Fallback legacy parsing
                 if (data.includes("token=")) {
-                    const parts = data.split("token=");
-                    if (parts.length > 1) token = parts[1].split("&")[0];
+                    token = data.split("token=")[1].split("&")[0];
                 }
             }
-            if (data.includes("?") && (data.includes("token=") || data.includes("uuid="))) {
-                const urlObj = new URL(data);
 
-                const extractedToken = urlObj.searchParams.get("token");
-                if (extractedToken) token = extractedToken;
-
-                const extractedUuid = urlObj.searchParams.get("uuid");
-                if (extractedUuid) uuid = extractedUuid;
-            }
-
-            // Check if extracted token is UUID
-            if (uuidRegex.test(token)) {
-                isUUID = true;
+            // If we found a token that looks like a UUID, and no explicit UUID param was found
+            if (!targetUuid && uuidRegex.test(token)) {
+                targetUuid = token;
             }
         }
 
-        console.log("Extracted Token:", token, "Is UUID:", isUUID);
+        console.log("Resolved - Token:", token, "UUID:", targetUuid);
 
-        if (isUUID) {
-            // Start Beacon Mode
-            // Close modal if open?
-            // Ask user confirmation?
+        if (targetUuid) {
             Alert.alert(
                 "Activate Beacon?",
-                `Do you want to broadcast this UUID?\n${token}`,
+                `Do you want to broadcast this UUID?\n${targetUuid}`,
                 [
                     {
                         text: "Cancel",
@@ -227,42 +187,19 @@ export default function ScannerScreen() {
                     {
                         text: "Start Broadcasting",
                         onPress: () => {
-                            startBeacon(token);
-                            // Keep scanned = true so camera pauses? 
-                            // Or show a specific "Broadcasting" UI
+                            startBeacon(targetUuid!);
                             setLoading(false);
                         }
                     }
                 ]
             );
         } else {
-            // fallback to API Verification (Legacy/Web mode)
+            // Standard Verification
             setModalVisible(true);
             const verification = await verifyToken(token);
             setResult(verification);
             setLoading(false);
         }
-        console.log("Extracted Token:", token);
-        console.log("Extracted UUID:", uuid);
-
-        // 1. Verify Token API Call
-        const verification = await verifyToken(token);
-
-        // 2. Emit Bluetooth if UUID is present
-        if (uuid) {
-            console.log(`Starting Bluetooth emission for UUID: ${uuid}`);
-            try {
-                // TODO: Replace with your specific Bluetooth library function 
-                // e.g., bleManager.startAdvertising(uuid) or similar
-                await startBluetoothEmission(uuid);
-            } catch (err) {
-                console.error("Failed to start Bluetooth emission:", err);
-            }
-        }
-
-
-        setResult(verification);
-        setLoading(false);
     };
 
     const closeModal = () => {
