@@ -1,11 +1,14 @@
-from fastapi import APIRouter, HTTPException, BackgroundTasks, Request
+from fastapi import APIRouter, HTTPException, BackgroundTasks, Request, WebSocket, WebSocketDisconnect
 import fastapi
 from app.api.models import InitSessionRequest, InitSessionResponse, VerifyTokenRequest, VerifyTokenResponse
 from app.services.session_manager import session_manager
+from app.services.websocket_manager import websocket_manager
 from app.core.config import settings
 import time
 from datetime import datetime
+import logging
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
 from app.core.rate_limit import RateLimiter
@@ -113,6 +116,16 @@ async def verify_token(body: VerifyTokenRequest, raw_request: Request, backgroun
     
     # Update status and SAVE RESULT
     session_manager.update_status(request.token, "CONSUMED", response_data.model_dump())
+    
+    # Send WebSocket notification if verification succeeded and proximity was confirmed
+    if result["verdict"] in ["TRUSTED", "CAUTION"] and bluetooth_data and bluetooth_data.get("confirmed"):
+        try:
+            await websocket_manager.send_verification_success(
+                request.token,
+                response_data.model_dump()
+            )
+        except Exception as e:
+            logger.error(f"Failed to send WebSocket notification: {e}")
 
     return response_data
 
@@ -157,3 +170,38 @@ async def confirm_proximity(nonce: str, bluetooth_data: BluetoothData):
     })
     
     return {"status": "proximity_confirmed"}
+
+@router.get("/ws/test")
+async def websocket_test():
+    """Test endpoint to verify WebSocket routes are registered"""
+    return {"status": "WebSocket routes are registered", "endpoint": "/api/v1/ws/verification/{nonce}"}
+
+@router.websocket("/ws/verification/{nonce}")
+async def websocket_verification(websocket: WebSocket, nonce: str):
+    """
+    WebSocket endpoint for mobile app to receive verification success notifications.
+    Mobile app connects with the session nonce (token) from QR code.
+    """
+    logger.info(f"WebSocket connection attempt for nonce: {nonce}")
+    try:
+        await websocket_manager.connect(websocket, nonce)
+        logger.info(f"WebSocket accepted for nonce: {nonce}")
+    except Exception as e:
+        logger.error(f"Failed to accept WebSocket connection for nonce {nonce}: {e}")
+        return
+    
+    try:
+        # Keep connection alive and wait for messages
+        while True:
+            # Optionally handle incoming messages (ping/pong, etc.)
+            data = await websocket.receive_text()
+            logger.debug(f"Received message from WebSocket for nonce {nonce}: {data}")
+            # Echo back or handle ping/pong
+            if data == "ping":
+                await websocket.send_text("pong")
+    except WebSocketDisconnect:
+        websocket_manager.disconnect(websocket, nonce)
+        logger.info(f"WebSocket disconnected for nonce: {nonce}")
+    except Exception as e:
+        logger.error(f"WebSocket error for nonce {nonce}: {e}")
+        websocket_manager.disconnect(websocket, nonce)

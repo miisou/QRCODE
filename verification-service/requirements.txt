@@ -1,9 +1,8 @@
-fastapi
-uvicorn
-pydantic
-email_validator
-requests
-user-agents
-cryptography
-pytest
-redis
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+pydantic>=2.0.0
+requests>=2.31.0
+user-agents>=2.2.0
+cryptography>=41.0.0
+redis>=5.0.0
+
