@@ -1,4 +1,5 @@
-# Gov Verify MVP
+# HACKNATION 2025 project
+## Gov Verify MVP
 
 A Minimum Viable Product for a government domain verification system. This project consists of three main components working together to demonstrate a secure verification flow.
 
