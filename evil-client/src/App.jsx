@@ -159,46 +159,46 @@ function App() {
             </div>
 
             <div className="verify-modal-body">
-        {!session ? (
-          <VerificationForm
-            onGenerate={handleGenerate}
-            expirationMessage={expirationMessage}
-            isLoading={loading}
-          />
-        ) : (
-          <>
-            <QRCodeDisplay
-              value={session.qr_payload}
-              initialTtl={session.expires_in}
-              onExpire={handleExpire}
-            />
+              {!session ? (
+                <VerificationForm
+                  onGenerate={handleGenerate}
+                  expirationMessage={expirationMessage}
+                  isLoading={loading}
+                />
+              ) : (
+                <>
+                  <QRCodeDisplay
+                    value={session.qr_payload}
+                    initialTtl={session.expires_in}
+                    onExpire={handleExpire}
+                  />
 
                   <div className="verify-token-box">
                     <p className="verify-token-label">Token (Nonce)</p>
                     <code className="verify-token-code">{session.nonce}</code>
-            </div>
+                  </div>
 
                   <div className="verify-ble-section">
-              {!bleStatus || bleStatus === 'not_found' || bleStatus === 'canceled' ? (
+                    {!bleStatus || bleStatus === 'not_found' || bleStatus === 'canceled' ? (
                       <button className="verify-ble-button" onClick={handleManualScan}>
                         <span className="material-symbols-rounded verify-ble-icon">bluetooth</span>
                         <span>Use Bluetooth Verification</span>
-                </button>
-              ) : null}
+                      </button>
+                    ) : null}
 
-              {bleStatus && (
+                    {bleStatus && (
                       <div className={`verify-ble-status verify-ble-status-${bleStatus}`}>
-                  {bleStatus === 'scanning' && '📡 Opening scanner for UUID... Check your phone!'}
-                  {bleStatus === 'found' && `✅ Matched Device Found: ${deviceName}`}
-                  {bleStatus === 'not_found' && '⚠️ Device with this UUID not found (or canceled)'}
-                  {bleStatus === 'not_supported' && 'ℹ️ Bluetooth API not supported'}
-                </div>
+                        {bleStatus === 'scanning' && '📡 Opening scanner for UUID... Check your phone!'}
+                        {bleStatus === 'found' && `✅ Matched Device Found: ${deviceName}`}
+                        {bleStatus === 'not_found' && '⚠️ Device with this UUID not found (or canceled)'}
+                        {bleStatus === 'not_supported' && 'ℹ️ Bluetooth API not supported'}
+                      </div>
+                    )}
+                  </div>
+                </>
               )}
-            </div>
-          </>
-        )}
 
-        {session && session.result && (
+              {session && session.result && (
                 <div
                   className={`verify-result-box ${
                     session.result.verdict === 'TRUSTED'
@@ -212,20 +212,20 @@ function App() {
                   <p className="verify-result-score">
                     Trust Score: <strong>{session.result.trust_score}/100</strong>
                   </p>
-            {session.result.verdict !== 'TRUSTED' && (
+                  {session.result.verdict !== 'TRUSTED' && (
                     <div className="verify-result-issues">
-                <h4>Issues:</h4>
-                <ul>
+                      <h4>Issues:</h4>
+                      <ul>
                         {session.result.logs
                           .filter((log) => !log.includes('PASS'))
                           .map((log, i) => (
-                    <li key={i}>{log}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
-          </div>
-        )}
+                            <li key={i}>{log}</li>
+                          ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </div>

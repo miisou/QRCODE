@@ -9,6 +9,7 @@ class Settings:
     REDIS_PORT: int = int(os.getenv("REDIS_PORT", 6379))
     
     # Allow badssl.com domains for SSL testing when TEST_SSL is True
-    TEST_SSL: bool = os.getenv("TEST_SSL", "False").lower() in ("true", "1", "yes")
+    TEST_SSL: bool = os.getenv("TEST_SSL", "False").lower() in ("true", "1", "yes")    
+    TEST: bool = os.getenv("TEST", "False").lower() in ("true", "1", "yes")    
 
 settings = Settings()

@@ -3,6 +3,7 @@ import socket
 from urllib.parse import urlparse
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives import serialization, hashes
 from cryptography.x509.oid import ExtensionOID
 from cryptography.x509.ocsp import OCSPRequestBuilder, OCSPResponseStatus
 import requests
@@ -95,7 +96,7 @@ class SSLVerifier:
             if ocsps and issuer:
                 for ocsp_url in ocsps:
                     builder = OCSPRequestBuilder()
-                    builder = builder.add_certificate(cert, issuer, x509.SHA1())
+                    builder = builder.add_certificate(cert, issuer, hashes.SHA256())
                     req = builder.build()
                     try:
                         resp = requests.post(ocsp_url, data=req.public_bytes(serialization.Encoding.DER), headers={'Content-Type': 'application/ocsp-request'}, timeout=3)

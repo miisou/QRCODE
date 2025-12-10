@@ -156,8 +156,9 @@ def test_websocket_verification_success(url):
     
     # 2. Send BLE Proximity Confirmation (confirmed) - FIRST, before WebSocket
     try:
+        ble_uuid = "test-uuid-" + nonce[:8]
         proximity_payload = {
-            "ble_uuid": "test-uuid-" + nonce[:8],
+            "ble_uuid": ble_uuid,
             "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
             "found": True,
             "supported": True
@@ -216,7 +217,7 @@ def test_websocket_verification_success(url):
             pass
     
     # Connect to WebSocket
-    ws_endpoint = f"{ws_url}/ws/verification/{nonce}"
+    ws_endpoint = f"{ws_url}/ws/verification/{nonce}?uuid={ble_uuid}"
     print(f"Connecting to WebSocket: {ws_endpoint}")
     ws = websocket.WebSocketApp(
         ws_endpoint,
@@ -374,7 +375,8 @@ def test_websocket_no_notification_on_failure(url):
             print(f"  → WebSocket connected")
             connection_established.set()
         
-        ws_endpoint = f"{ws_url}/ws/verification/{nonce}"
+        ble_uuid = "test-uuid-" + nonce[:8]
+        ws_endpoint = f"{ws_url}/ws/verification/{nonce}?uuid={ble_uuid}"
         print(f"Connecting to WebSocket: {ws_endpoint}")
         ws = websocket.WebSocketApp(
             ws_endpoint,
@@ -495,7 +497,8 @@ def test_websocket_no_proximity_no_notification(url):
         print(f"  → WebSocket connected")
         connection_established.set()
     
-    ws_endpoint = f"{ws_url}/ws/verification/{nonce}"
+    ble_uuid = "test-uuid-" + nonce[:8]
+    ws_endpoint = f"{ws_url}/ws/verification/{nonce}?uuid={ble_uuid}"
     print(f"Connecting to WebSocket: {ws_endpoint}")
     ws = websocket.WebSocketApp(
         ws_endpoint,

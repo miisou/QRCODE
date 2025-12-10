@@ -1,8 +1,10 @@
 from datetime import datetime, timezone
 from typing import Dict, Any, Tuple
+from urllib.parse import urlparse
+
+from app.core.config import settings
 from app.services.whitelist_checker import trust_anchor_repository
 from app.services.ssl_verifier import ssl_verifier
-from urllib.parse import urlparse
 
 class VerificationEngine:
     def __init__(self):
@@ -20,6 +22,8 @@ class VerificationEngine:
         
         parsed = urlparse(url)
         hostname = parsed.netloc
+        scheme = parsed.scheme.lower()
+        
         if not hostname:
              return {
                 "score": 0,
@@ -36,37 +40,7 @@ class VerificationEngine:
             "chain_integrity": "UNKNOWN",
             "ip_correlation": "SKIPPED",
             "bt_proximity": "UNKNOWN"
-        }        
-
-        # 0. BLE Proximity Check (CRITICAL if BLE supported)
-        # Rule: Verification passes ONLY if:
-        #   1) BLE proximity confirmed, OR
-        #   2) BLE not supported by browser (proximity data with supported=false OR no proximity data)
-        # If BLE supported but NOT confirmed → FAIL
-        
-        if proximity:
-            # Browser sent proximity data
-            if proximity.get("confirmed"):
-                # BLE supported AND proximity confirmed
-                details["bt_proximity"] = "PASS"
-                logs.append(f"✅ BT proximity confirmed")
-            elif "confirmed" in proximity and not proximity.get("confirmed"):
-                # BLE attempted but NOT confirmed
-                # Check the 'supported' field to know if BLE is available
-                if not proximity.get("supported"):
-                    # BLE not supported by browser - allow verification
-                    details["bt_proximity"] = "SKIPPED"
-                    logs.append("BT proximity check skipped (not supported by browser)")
-                else:
-                    # BLE IS supported but phone not found/too far - FAIL
-                    details["bt_proximity"] = "FAIL"
-                    logs.append("❌ BT supported but phone proximity NOT confirmed")
-                    score = 0
-                    return self._build_result(score, logs, details)
-        else:
-            # No proximity data = BLE scan not attempted (old client or error)
-            details["bt_proximity"] = "SKIPPED"
-            logs.append("BT proximity check skipped (not attempted)")
+        }            
         
 
         # 1. Whitelist Check (40%)

@@ -1,6 +1,9 @@
 from fastapi import Request, HTTPException
 from app.services.session_manager import session_manager
 import time
+import logging
+
+logger = logging.getLogger(__name__)
 
 class RateLimiter:
     def __init__(self, requests_per_minute: int = 60, burst: int = 5):
@@ -31,13 +34,9 @@ class RateLimiter:
         except Exception as e:
             if isinstance(e, HTTPException):
                 raise e
-            # Fail open or closed? Fail open for availability if Redis blips?
-            # Creating sessions is critical but abuse is risk. 
-            # Let's log and pass if redis fails?
-            # Typically fail closed for security, fail open for UX.
-            # We already rely on Redis for sessions, so if Redis is down, system is down anyway.
-            # So just letting it raise or handling connection error is fine.
-            print(f"Rate Limit Error: {e}")
-            pass
+            # Fail closed for security: if rate limiting fails, block the request
+            # This prevents DoS attacks when Redis is unavailable
+            logger.error(f"Rate Limit Error: {e}")
+            raise HTTPException(status_code=503, detail="Rate limiting service unavailable")
 
 rate_limiter = RateLimiter() # Global instance or dependency

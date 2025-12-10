@@ -11,7 +11,7 @@
   background: var(--card-bg);
   padding: 2rem;
   border-radius: 12px;
-  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
   transition: transform 0.2s;
 }
 
@@ -75,7 +75,7 @@ p {
   line-height: 1.6;
 }
 
-/* --- New layout for high-fidelity gov portal + floating button + modal --- */
+/* --- Gov portal layout with gov.pl watermark --- */
 
 body {
   margin: 0;
@@ -87,6 +87,29 @@ body {
 .gov-portal-page {
   min-height: 100vh;
   background-color: #ffffff;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Soft gov.pl text in the background */
+.gov-portal-page::before {
+  content: 'gov.pl gov.pl gov.pl';
+  position: fixed;
+  inset: -15%;
+  font-size: 8rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: lowercase;
+  color: rgba(0, 82, 165, 0.04);
+  transform: rotate(-18deg);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.gov-portal-layout,
+.verify-fab {
+  position: relative;
+  z-index: 1;
 }
 
 .gov-portal-layout {

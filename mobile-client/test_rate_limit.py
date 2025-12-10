@@ -9,12 +9,11 @@ def test_rate_limit():
     print("Testing Rate Limit on /session/init (Limit: 20 per min)")
     print(f"Target: {BASE_URL}")
     
-    # Send 25 requests rapidly - some MUST get rate limited
-    print("Sending 25 rapid requests to trigger rate limit...")
+    total = 25
+    print(f"Sending {total} rapid requests to trigger rate limit...")
     responses = []
     rate_limited_count = 0
     success_count = 0
-    total = 50
     for i in range(1, total + 1):
         try:
             # Send empty JSON body - FastAPI requires it even though model is empty
@@ -36,7 +35,7 @@ def test_rate_limit():
                 if i <= 3:  # Only print first few to avoid spam
                     print(f"Request #{i}: Got status {resp.status_code}")
             
-            #time.sleep(0.1)  # Small delay to simulate realistic traffic
+            time.sleep(0.1)  # Small delay to simulate realistic traffic
         except Exception as e:
             print(f"Error on request {i}: {e}")
     
